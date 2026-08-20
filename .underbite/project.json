@@ -1,0 +1,28 @@
+{
+  "schema": "underbite-project/v1",
+  "project_key": "PROJECT-DAVID-VOICE-LOCAL-DICTATION",
+  "project_name": "David Voice Local Dictation",
+  "project_slug": "david-voice-local-dictation",
+  "phase": "human-validation-pending",
+  "created_on": "2026-08-20",
+  "outcome": "Determine through a same-day BOYA and 20-prompt trial whether local VoiceInk dictation is close enough to Wispr Flow to justify further work.",
+  "owners": {
+    "commercial": "David",
+    "technical": "David",
+    "project_manager": "David"
+  },
+  "research": {
+    "commercial_diligence": "complete-light",
+    "technical_literature_review": "complete-light",
+    "synthesis": "complete-light",
+    "source_register": "research/source-register.csv",
+    "claim_ledger": "research/claim-evidence.csv"
+  },
+  "authority": {
+    "external_communications": "exact_human_approval_required",
+    "spend": "exact_human_authority_required",
+    "production_mutation": "exact_human_authority_required",
+    "review_acceptance": "human_only",
+    "done": "human_only"
+  }
+}

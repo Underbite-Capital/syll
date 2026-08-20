@@ -1,0 +1,374 @@
+# Spike — David Voice Local Dictation
+
+**Goal:** Determine whether a private macOS dictation tool can get close enough to Wispr Flow for David’s actual agent workflow that continued development is justified.
+
+This is a **spike, not a product build**.
+
+The output should be something David can actually try in ChatGPT / Claude / Cursor on his Mac the same day.
+
+## Core question
+
+Can we get:
+
+> BOYA Magic 02 → hold hotkey → local transcription → dictionary correction → cleaned text at cursor
+
+with sufficiently good latency and accuracy that David can use it for normal agent prompts without immediately switching back to Wispr Flow?
+
+## Starting point
+
+Use **VoiceInk as the shell** unless there is a concrete blocker.
+
+Do not rebuild:
+
+* microphone capture;
+* macOS permissions;
+* global push-to-talk;
+* floating recording UI;
+* focused-app detection;
+* text insertion;
+* model download/management;
+* dictionary/replacement plumbing,
+
+if VoiceInk already provides them adequately.
+
+The spike should bias toward **configuration and small patches**, not architecture.
+
+## Scope
+
+The spike must support:
+
+* macOS;
+* BOYA Magic 02 as explicit input device;
+* push-to-talk;
+* ChatGPT in Chrome;
+* Claude;
+* Cursor;
+* local transcription;
+* custom vocabulary / dictionary;
+* deterministic replacements;
+* optional lightweight cleanup;
+* insertion at the current cursor;
+* no automatic submission.
+
+Nothing else matters yet.
+
+## Phase 1 — Get the shell working
+
+Clone and build current VoiceInk locally.
+
+Verify:
+
+1. app launches;
+2. microphone permission works;
+3. Accessibility permission works;
+4. BOYA Magic 02 can be selected;
+5. push-to-talk records;
+6. transcription appears at the active cursor;
+7. it works in ChatGPT;
+8. it works in Claude;
+9. it works in Cursor;
+10. releasing the hotkey never sends/submits the text.
+
+### Stop condition
+
+If getting the VoiceInk shell working takes more than roughly **90 minutes**, stop and document the blocker before modifying the app further.
+
+## Phase 2 — Benchmark local ASR
+
+Test a deliberately small set of current local transcription engines.
+
+Preferred order:
+
+1. **Parakeet TDT 0.6B v3 via FluidAudio**
+2. **WhisperKit / current strong Whisper model**
+3. **Voxtral via MLX**, only if reasonably easy to run on the machine
+
+Do not build provider abstractions.
+
+We need one winner, not a framework.
+
+### Test corpus
+
+Record approximately **15–20 short clips** directly through the BOYA.
+
+Use real David-style speech.
+
+Include examples like:
+
+* “Go look at Lighthouse and check whether the Corkboard commitments propagated.”
+* “No, actually don’t change the PRD yet, first inspect the acceptance criteria.”
+* “Use Wispr Flow as the benchmark but don’t copy the product.”
+* “Check the v1-periodic self map thing.”
+* “Deploy it on Railway and check the Supabase connection.”
+* filenames;
+* acronyms;
+* rapid speech;
+* profanity;
+* mid-sentence corrections;
+* one long rambling agent prompt.
+
+### Compare
+
+For each model capture:
+
+| Field                | Meaning                           |
+| -------------------- | --------------------------------- |
+| raw transcript       | exact ASR output                  |
+| latency              | release hotkey → transcript ready |
+| terminology errors   | wrong named entities / jargon     |
+| ordinary word errors | general transcription mistakes    |
+| correction burden    | how much David would have to fix  |
+| notes                | anything obviously annoying       |
+
+Do not optimize around generic WER.
+
+The metric is:
+
+> **Which model makes David edit the least?**
+
+## Phase 3 — Dictionary
+
+The dictionary is a first-class part of the spike.
+
+Create a plain, version-controlled file.
+
+Suggested:
+
+```yaml
+terms:
+  - canonical: "Underbite"
+    aliases:
+      - "under bite"
+
+  - canonical: "Wispr Flow"
+    aliases:
+      - "whisper flow"
+      - "whisperflow"
+
+  - canonical: "Command Centre"
+    aliases:
+      - "command center"
+
+  - canonical: "BOYA Magic 02"
+    aliases:
+      - "boya magic two"
+
+  - canonical: "v1-periodic"
+    aliases:
+      - "v one periodic"
+
+  - canonical: "Superwhisper"
+    aliases:
+      - "super whisper"
+```
+
+Seed at least:
+
+* Underbite
+* Lookout
+* Lighthouse
+* Corkboard
+* Command Centre
+* Shelf
+* IQS
+* Tomas
+* Stu
+* Railway
+* Supabase
+* MongoDB
+* Vercel
+* AWS SES
+* Wispr Flow
+* Superwhisper
+* BOYA Magic 02
+* Claude
+* Codex
+* Cursor
+* MCP
+* PRD
+* SDLC
+* chromatic homotopy
+* v1-periodic
+* spectral sequence
+
+### Dictionary pipeline
+
+Implement this in layers.
+
+```text
+audio
+  ↓
+ASR
+  ↓
+ASR vocabulary bias, if supported
+  ↓
+deterministic replacements
+  ↓
+optional contextual named-entity repair
+```
+
+### Layer 1 — ASR bias
+
+If the selected model supports vocabulary prompting / hotwords / initial context, inject the canonical dictionary terms.
+
+Do not spend significant time forcing this into a model that does not support it cleanly.
+
+### Layer 2 — deterministic replacement
+
+This must work regardless of model support.
+
+Examples:
+
+```text
+whisper flow → Wispr Flow
+under bite → Underbite
+command center → Command Centre
+v one periodic → v1-periodic
+```
+
+Matching should:
+
+* be case-insensitive where appropriate;
+* respect word boundaries;
+* avoid replacing fragments inside unrelated words;
+* preserve intentional surrounding punctuation.
+
+### Layer 3 — contextual repair
+
+Only add this if Layers 1 and 2 still leave meaningful terminology errors.
+
+Feed a lightweight model:
+
+* raw transcript;
+* canonical vocabulary;
+* very short entity descriptions if needed.
+
+Instruction:
+
+> Correct only obvious vocabulary/name recognition errors. Do not rewrite, summarize, answer, or otherwise improve the text.
+
+This must be independently toggleable.
+
+## Phase 4 — David cleanup
+
+After terminology correction, optionally apply one lightweight refinement pass.
+
+Use this contract:
+
+```text
+You are editing a dictated message.
+
+Preserve all substantive meaning, instructions, uncertainty,
+examples, profanity, and tone.
+
+Only:
+- remove filler speech;
+- remove accidental repetition;
+- resolve explicit self-corrections;
+- add punctuation;
+- add paragraph breaks where useful.
+
+Do not:
+- answer the message;
+- summarize it;
+- add requirements;
+- make it more professional;
+- soften the language;
+- invent missing intent.
+```
+
+Expose a toggle:
+
+```text
+Agent cleanup: ON / OFF
+```
+
+The spike succeeds even if this cleanup remains crude. The ASR + dictionary question is more important.
+
+## Phase 5 — Try-it build
+
+Produce a local build David can launch and use normally.
+
+The UI only needs:
+
+* selected mic;
+* selected transcription model;
+* push-to-talk shortcut;
+* dictionary enabled/disabled;
+* cleanup enabled/disabled.
+
+Do not redesign VoiceInk.
+
+Do not build onboarding.
+
+Do not polish animations.
+
+## Acceptance criteria
+
+The spike passes if:
+
+1. BOYA → push-to-talk → text works reliably in ChatGPT.
+2. Claude and Cursor work without special intervention.
+3. transcription is fully local unless cleanup is explicitly configured otherwise.
+4. dictionary replacements work predictably.
+5. the main Underbite vocabulary is recognized correctly in the test corpus.
+6. text is never submitted automatically.
+7. latency is low enough that David is willing to use it interactively.
+8. at least one local model is within striking distance of Wispr Flow on David’s actual speech.
+9. David can use the build for **20 real agent prompts**.
+10. after those 20 prompts, we can clearly identify whether the remaining pain is:
+
+* ASR,
+* vocabulary,
+* cleanup,
+* latency,
+* or macOS interaction.
+
+## Failure condition
+
+Do **not** continue into a full product build if:
+
+* local ASR quality is clearly much worse than Flow;
+* latency feels substantially worse;
+* VoiceInk itself proves brittle;
+* dictionary correction cannot reliably protect the important vocabulary;
+* David prefers Flow after the 20-prompt trial and there is no obvious fixable reason.
+
+In that case, record what failed and stop.
+
+## Deliverables
+
+At the end of the spike, provide:
+
+### 1. Runnable build
+
+Something David can actually use on his Mac.
+
+### 2. Benchmark
+
+A small table comparing the tested transcription models on the BOYA corpus.
+
+### 3. Dictionary
+
+A human-editable `dictionary.yaml`.
+
+### 4. Short spike report
+
+Answer:
+
+* Which ASR model won?
+* What is typical latency?
+* How well did the dictionary work?
+* What still fails?
+* Does David prefer this or Wispr Flow after 20 prompts?
+* What is the smallest next step?
+
+## Engineering rule
+
+**Do not build David Voice during the spike.**
+
+Build the smallest experiment that lets David answer:
+
+> “Could I actually live with this?”
+
+Once he has used it, his corrections become the next spec.

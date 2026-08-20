@@ -1,0 +1,82 @@
+version: 1
+terms:
+  - canonical: "Underbite"
+    aliases:
+      - "under bite"
+  - canonical: "Lookout"
+    aliases: []
+  - canonical: "Lighthouse"
+    aliases:
+      - "light house"
+  - canonical: "Corkboard"
+    aliases:
+      - "cork board"
+  - canonical: "Command Centre"
+    aliases:
+      - "command center"
+  - canonical: "Shelf"
+    aliases: []
+  - canonical: "IQS"
+    aliases:
+      - "I Q S"
+      - "eye cue ess"
+  - canonical: "Tomas"
+    aliases: []
+  - canonical: "Stu"
+    aliases: []
+  - canonical: "Railway"
+    aliases: []
+  - canonical: "Supabase"
+    aliases:
+      - "super base"
+      - "supa base"
+  - canonical: "MongoDB"
+    aliases:
+      - "Mongo D B"
+      - "Mongo DB"
+  - canonical: "Vercel"
+    aliases:
+      - "versel"
+      - "verse cell"
+  - canonical: "AWS SES"
+    aliases:
+      - "A W S S E S"
+      - "AWS S E S"
+  - canonical: "Wispr Flow"
+    aliases:
+      - "whisper flow"
+      - "whisperflow"
+      - "wisper flow"
+  - canonical: "Superwhisper"
+    aliases:
+      - "super whisper"
+  - canonical: "BOYA Magic 02"
+    aliases:
+      - "boya magic two"
+      - "boya magic zero two"
+  - canonical: "Claude"
+    aliases: []
+  - canonical: "Codex"
+    aliases:
+      - "code x"
+  - canonical: "Cursor"
+    aliases: []
+  - canonical: "MCP"
+    aliases:
+      - "M C P"
+  - canonical: "PRD"
+    aliases:
+      - "P R D"
+  - canonical: "SDLC"
+    aliases:
+      - "S D L C"
+  - canonical: "chromatic homotopy"
+    aliases:
+      - "chromatic homo topee"
+  - canonical: "v1-periodic"
+    aliases:
+      - "v one periodic"
+      - "v one dash periodic"
+      - "V1 periodic"
+  - canonical: "spectral sequence"
+    aliases: []

@@ -1,0 +1,112 @@
+{
+  "version": "2.11",
+  "customPrompts": [
+    {
+      "id": "42924d0f-8d85-4eaa-bb3e-2434390406e7",
+      "title": "David cleanup",
+      "promptText": "You are editing a dictated message.\n\nPreserve all substantive meaning, instructions, uncertainty,\nexamples, profanity, and tone.\n\nOnly:\n- remove filler speech;\n- remove accidental repetition;\n- resolve explicit self-corrections;\n- add punctuation;\n- add paragraph breaks where useful.\n\nDo not:\n- answer the message;\n- summarize it;\n- add requirements;\n- make it more professional;\n- soften the language;\n- invent missing intent.",
+      "useSystemInstructions": true
+    }
+  ],
+  "modeConfigs": [],
+  "vocabularyWords": [
+    {
+      "word": "Underbite"
+    },
+    {
+      "word": "Lookout"
+    },
+    {
+      "word": "Lighthouse"
+    },
+    {
+      "word": "Corkboard"
+    },
+    {
+      "word": "Command Centre"
+    },
+    {
+      "word": "Shelf"
+    },
+    {
+      "word": "IQS"
+    },
+    {
+      "word": "Tomas"
+    },
+    {
+      "word": "Stu"
+    },
+    {
+      "word": "Railway"
+    },
+    {
+      "word": "Supabase"
+    },
+    {
+      "word": "MongoDB"
+    },
+    {
+      "word": "Vercel"
+    },
+    {
+      "word": "AWS SES"
+    },
+    {
+      "word": "Wispr Flow"
+    },
+    {
+      "word": "Superwhisper"
+    },
+    {
+      "word": "BOYA Magic 02"
+    },
+    {
+      "word": "Claude"
+    },
+    {
+      "word": "Codex"
+    },
+    {
+      "word": "Cursor"
+    },
+    {
+      "word": "MCP"
+    },
+    {
+      "word": "PRD"
+    },
+    {
+      "word": "SDLC"
+    },
+    {
+      "word": "chromatic homotopy"
+    },
+    {
+      "word": "v1-periodic"
+    },
+    {
+      "word": "spectral sequence"
+    }
+  ],
+  "wordReplacements": {
+    "under bite": "Underbite",
+    "light house": "Lighthouse",
+    "cork board": "Corkboard",
+    "command center": "Command Centre",
+    "I Q S, eye cue ess": "IQS",
+    "super base, supa base": "Supabase",
+    "Mongo D B, Mongo DB": "MongoDB",
+    "versel, verse cell": "Vercel",
+    "A W S S E S, AWS S E S": "AWS SES",
+    "whisper flow, whisperflow, wisper flow": "Wispr Flow",
+    "super whisper": "Superwhisper",
+    "boya magic two, boya magic zero two": "BOYA Magic 02",
+    "code x": "Codex",
+    "M C P": "MCP",
+    "P R D": "PRD",
+    "S D L C": "SDLC",
+    "chromatic homo topee": "chromatic homotopy",
+    "v one periodic, v one dash periodic, V1 periodic": "v1-periodic"
+  }
+}

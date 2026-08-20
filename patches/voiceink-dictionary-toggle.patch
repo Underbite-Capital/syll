@@ -1,0 +1,66 @@
+diff --git a/VoiceInk/Transcription/Processing/WordReplacementService.swift b/VoiceInk/Transcription/Processing/WordReplacementService.swift
+index f0c6caf..0dbca2b 100644
+--- a/VoiceInk/Transcription/Processing/WordReplacementService.swift
++++ b/VoiceInk/Transcription/Processing/WordReplacementService.swift
+@@ -3,10 +3,17 @@ import SwiftData
+ 
+ class WordReplacementService {
+     static let shared = WordReplacementService()
++    static let isDictionaryCorrectionsEnabledKey = "isDictionaryCorrectionsEnabled"
+ 
+     private init() {}
+ 
+     func applyReplacements(to text: String, using context: ModelContext) -> String {
++        if let isEnabled = UserDefaults.standard.object(
++            forKey: Self.isDictionaryCorrectionsEnabledKey
++        ) as? Bool, !isEnabled {
++            return text
++        }
++
+         let descriptor = FetchDescriptor<WordReplacement>(
+             predicate: #Predicate { $0.isEnabled }
+         )
+diff --git a/VoiceInk/Views/Dictionary/DictionarySettingsView.swift b/VoiceInk/Views/Dictionary/DictionarySettingsView.swift
+index 2f7f445..507d941 100644
+--- a/VoiceInk/Views/Dictionary/DictionarySettingsView.swift
++++ b/VoiceInk/Views/Dictionary/DictionarySettingsView.swift
+@@ -1,6 +1,8 @@
+ import SwiftUI
+ 
+ struct DictionarySettingsView: View {
++    @AppStorage(WordReplacementService.isDictionaryCorrectionsEnabledKey)
++    private var isDictionaryCorrectionsEnabled = true
+     @State private var selectedSection: DictionarySection = .replacements
+     @State private var isShowingSettings = false
+     private let dictionaryInfoMessage: LocalizedStringKey =
+@@ -41,6 +43,7 @@ struct DictionarySettingsView: View {
+ 
+             ScrollView(.vertical) {
+                 VStack(alignment: .leading, spacing: 18) {
++                    dictionaryCorrectionsToggle
+                     sectionSelector
+                     selectedSectionForm
+                 }
+@@ -78,6 +81,22 @@ struct DictionarySettingsView: View {
+         DictionarySectionSwitcher(selection: $selectedSection)
+     }
+ 
++    private var dictionaryCorrectionsToggle: some View {
++        DictionaryGroupedSection {
++            Toggle(isOn: $isDictionaryCorrectionsEnabled) {
++                VStack(alignment: .leading, spacing: 3) {
++                    Text("Dictionary corrections")
++                        .font(.system(size: 14, weight: .semibold))
++
++                    Text("Apply enabled word replacements after transcription.")
++                        .font(.system(size: 12))
++                        .foregroundStyle(.secondary)
++                }
++            }
++            .toggleStyle(.switch)
++        }
++    }
++
+     private var selectedSectionForm: some View {
+         DictionaryGroupedSection {
+             selectedSectionContent
