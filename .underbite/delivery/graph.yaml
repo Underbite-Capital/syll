@@ -1,0 +1,171 @@
+schema_version: "0.2"
+graph:
+  id: local-dictation-v1
+  revision: G-v1
+  status: proposed
+  repository: Underbite-Capital/david-voice-local-dictation
+  base_revision: 2828ff20f29070603806df4b408fb1d1cffe73eb
+  product_brief:
+    id: PRD-local-dictation-0.1.0
+    revision: v0.2
+    pointer: https://app.notion.com/p/3c347863c0ff81b9bf05e5ada8fa8438
+  engineering_contract:
+    id: EC-local-dictation-v1
+    revision: EC-v1
+    pointer: https://app.notion.com/p/3c347863c0ff81fda24eea23755999b2
+  technical_grounding:
+    id: GROUNDING-local-dictation-0.1.0
+    revision: v0.1
+    pointer: https://app.notion.com/p/3c347863c0ff81cc95dbcf3c533abc56
+
+nodes:
+  - id: T-01
+    title: Implement Flow-style dictation gesture state machine
+    outcome: >-
+      The primary shortcut supports hold-to-talk/release-to-finish plus
+      double-tap-to-lock hands-free dictation and tap-to-finish, with Escape
+      cancellation and no accidental stuck recording state.
+    hard_dependencies: []
+    product_acceptance: [P-01, P-02, P-03]
+    contract_refs: [HC-01, C-01, I-01, V-01]
+    instructions:
+      - Reuse VoiceInk's existing shortcut monitor and recording lifecycle; do not build a second input system.
+      - Replace/extend current hybrid semantics so a deliberate double-tap enters locked recording while a normal hold remains push-to-talk.
+      - Preserve one configurable primary shortcut and existing recorder feedback/focus behavior.
+      - Escape during recording must cancel/discard and return to idle without insertion.
+      - Choose timing constants from interaction tests; do not expose them as normal product settings.
+    acceptance:
+      - Hold starts recording and release finishes exactly once.
+      - Double-tap starts locked recording without requiring the key to remain held.
+      - One subsequent tap finishes locked recording exactly once.
+      - Escape cancels both held and locked recording and inserts nothing.
+      - Repeated gesture testing shows no stuck recording state or accidental lock under normal use.
+    required_evidence:
+      - automated state-transition tests for held, double-tap, locked-finish, cancellation, interruption, and cooldown edges
+      - manual 50-cycle gesture trial on the target Mac with zero unintended locked recordings
+
+  - id: T-02
+    title: Make cursor insertion non-destructive
+    outcome: >-
+      Dictated text appears at the active cursor without automatic submission and
+      the user's pre-existing clipboard behaves as though dictation never occurred.
+    hard_dependencies: []
+    product_acceptance: [P-04]
+    contract_refs: [HC-02, C-02, I-02, V-02]
+    instructions:
+      - Keep VoiceInk's existing cursor-paste path unless evidence proves it inadequate.
+      - Auto Send must be impossible in the focused product path.
+      - Snapshot and restore the complete pasteboard state, not only plain text.
+      - Tune restoration timing to the shortest reliably safe value; do not depend on experimental direct-typing work for MVP.
+      - If the focused editable target is no longer valid at insertion time, do not paste into an unknown target.
+    acceptance:
+      - Dictation never synthesizes Return/Enter or another submit action.
+      - Text lands at the current editable cursor in representative browser, Electron, and native macOS fields.
+      - Existing text/file/image/rich clipboard payloads remain available immediately after safe restoration.
+      - Failed or invalid-target insertion does not corrupt clipboard state.
+    required_evidence:
+      - automated pasteboard snapshot/restore tests covering multiple pasteboard types
+      - cross-app smoke test in ChatGPT/Chrome, Claude, Cursor, and a native macOS text field
+      - repeated immediate-copy/paste regression test demonstrating no persistent clipboard loss
+
+  - id: T-03
+    title: Harden the personal terminology pipeline
+    outcome: >-
+      One canonical personal dictionary reliably protects specialist terminology
+      through the strongest available recognition and deterministic correction
+      mechanisms without unacceptable false replacements.
+    hard_dependencies: []
+    product_acceptance: [P-05]
+    contract_refs: [HC-03, C-03, I-03, V-03]
+    instructions:
+      - Keep dictionary.yaml semantics centered on canonical term plus aliases and enabled state.
+      - Preserve VoiceInk deterministic boundary-safe replacement as the hard fallback.
+      - Wire the same canonical dictionary into recognition-time vocabulary/context bias where the selected existing engine supports it cleanly.
+      - Run the prepared BOYA corpus against the bounded existing candidate set; do not add a provider framework or fine-tune a model.
+      - Select the default by correction burden, using felt release-to-cursor latency as the tie-breaker.
+    acceptance:
+      - Existing dictionary import/edit/toggle behavior remains functional.
+      - Prepared terminology corpus records raw, biased, and deterministic-corrected outcomes without invented results.
+      - Chosen configuration reduces or matches correction burden versus the spike baseline and does not create unacceptable false positives.
+      - Canonical spelling survives the downstream cleanup stage.
+    required_evidence:
+      - completed evidence/benchmark.csv for the bounded candidate comparison
+      - paired dictionary on/off results for terminology-heavy corpus rows
+      - focused replacement tests for word boundaries, casing, punctuation, and conflicting aliases
+
+  - id: T-04
+    title: Add bounded Light cleanup with fail-open semantics
+    outcome: >-
+      Spoken-language cleanup removes filler/repetition and resolves explicit
+      self-corrections without changing substantive meaning, and any slow or
+      suspicious cleanup result falls back immediately to the terminology-corrected transcript.
+    hard_dependencies: [T-03]
+    product_acceptance: [P-06]
+    contract_refs: [HC-04, C-04, I-04, V-04]
+    instructions:
+      - Use the existing conservative cleanup contract as the behavioral authority.
+      - Evaluate only bounded fast existing local/cloud enhancement paths; do not introduce reasoning-heavy or multi-agent cleanup.
+      - Cleanup receives transcript plus canonical vocabulary only; no screen/clipboard/app context in MVP.
+      - Make a single bounded attempt. On timeout/error/empty/suspicious output, return the pre-cleanup transcript with no retry delay.
+      - Default cleanup on only if it passes both safety and interactive-latency evidence.
+    acceptance:
+      - Cleanup removes allowed speech artifacts on prepared examples.
+      - No test case changes instructions, negation, uncertainty, profanity, numbers, filenames, examples, or named entities.
+      - Timeout/error/suspicious-output paths return the pre-cleanup transcript.
+      - If no candidate meets the contract, cleanup remains disabled and the node may still complete with evidence supporting that decision.
+    required_evidence:
+      - cleanup safety corpus results including explicit forbidden-transformation cases
+      - latency comparison of bounded cleanup candidates
+      - executable fallback tests for timeout, provider error, empty output, and semantic-safety rejection
+
+  - id: T-05
+    title: Collapse VoiceInk into the focused daily surface
+    outcome: >-
+      Normal daily use is menu-bar-first and requires only the dictation shortcut,
+      small state feedback, microphone choice, dictionary access, and cleanup state;
+      VoiceInk's broader machinery remains behind an Advanced Settings boundary.
+    hard_dependencies: [T-01, T-02, T-03, T-04]
+    product_acceptance: [P-01, P-07]
+    contract_refs: [HC-05, C-05, I-05, V-05]
+    instructions:
+      - Hide/re-route rather than delete mature VoiceInk capabilities unless deletion materially reduces risk.
+      - Normal surface: recording/locked/processing feedback, microphone, shortcut, dictionary, cleanup, and Advanced Settings entry.
+      - Remove app-specific modes and Auto Send from the normal product journey.
+      - Preserve advanced model/provider/configuration capability only where useful for maintenance or explicit user choice.
+      - Keep distribution GPLv3-compatible and clearly identify the product as a modified VoiceInk-based distribution.
+    acceptance:
+      - After setup, ordinary dictation requires no main-window interaction and no mode/app selection.
+      - The user can change microphone, shortcut, dictionary, and cleanup without navigating the full VoiceInk dashboard.
+      - Advanced settings remain reachable for model/provider/download/diagnostic configuration.
+      - Focused defaults cannot accidentally enable Auto Send.
+    required_evidence:
+      - clean-run walkthrough of first setup and one successful dictation
+      - routine-use walkthrough demonstrating menu-bar-only operation
+      - regression smoke test confirming hidden advanced machinery still functions where retained
+
+  - id: T-06
+    title: Assemble and validate the Wispr Flow replacement experience
+    outcome: >-
+      The completed focused build is tested as one product and produces the evidence
+      needed to decide whether David can stop paying for Wispr Flow and whether an
+      external alpha is justified.
+    hard_dependencies: [T-01, T-02, T-03, T-04, T-05]
+    product_acceptance: [P-01, P-02, P-03, P-04, P-05, P-06, P-07, P-08]
+    contract_refs: [V-01, V-02, V-03, V-04, V-05]
+    instructions:
+      - Build/sign the focused app from the composed node outputs.
+      - Complete the existing 20-prompt trial; do not replace it with synthetic benchmarks.
+      - Use correction burden and felt release-to-cursor delay as primary quality evidence.
+      - Run the product as David's normal dictation tool for five consecutive working days.
+      - Record dominant annoyance and perform at most one bounded remediation cycle before the product stop decision.
+      - External Flow-user pilot is a later publication/adoption step, not required to call the personal product useful.
+    acceptance:
+      - All upstream node proofs remain valid in the assembled build.
+      - evidence/20-prompt-trial.csv is complete and contains no invented observations.
+      - Five-day normal-use outcome records whether David would pay R150/month to return to Wispr Flow.
+      - Any blocker/failure is classified at the narrowest invalidated layer rather than papered over.
+    required_evidence:
+      - assembled build provenance and source revision
+      - completed 20-prompt trial
+      - five-day adoption decision and dominant-pain summary
+      - assembly regression results for gesture, cursor safety, dictionary, cleanup, and focused UI
