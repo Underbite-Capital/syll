@@ -2,7 +2,7 @@ schema_version: "0.2"
 graph:
   id: local-dictation-v1
   revision: G-v1
-  status: proposed
+  status: accepted
   repository: Underbite-Capital/david-voice-local-dictation
   base_revision: 2828ff20f29070603806df4b408fb1d1cffe73eb
   product_brief:
