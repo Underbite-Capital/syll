@@ -1,11 +1,11 @@
-name: validate-project-template
+name: validate-voiceink-overlay
 
 on:
   push:
   pull_request:
 
 jobs:
-  validate:
+  metadata:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,3 +13,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: python scripts/validate_project.py --template
+      - run: python scripts/verify_overlay.py
+
+  apply-core-overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/prepare-app.sh --core-only --reset
+      - run: git -C app diff --check

@@ -4,93 +4,41 @@
     {
       "id": "42924d0f-8d85-4eaa-bb3e-2434390406e7",
       "title": "David cleanup",
-      "promptText": "You are editing a dictated message.\n\nPreserve all substantive meaning, instructions, uncertainty,\nexamples, profanity, and tone.\n\nOnly:\n- remove filler speech;\n- remove accidental repetition;\n- resolve explicit self-corrections;\n- add punctuation;\n- add paragraph breaks where useful.\n\nDo not:\n- answer the message;\n- summarize it;\n- add requirements;\n- make it more professional;\n- soften the language;\n- invent missing intent.",
+      "promptText": "Clean the dictated text inside <TRANSCRIPT>.\n\nPreserve exactly:\n- the user's substantive meaning, requests, uncertainty, negation, examples, profanity, and tone;\n- all names, numbers, dates, filenames, URLs, technical terms, and dictionary spellings;\n- any wording whose removal would change what the user is asking or claiming.\n\nYou may only:\n- remove filler speech that adds no meaning;\n- remove accidental repetition and abandoned starts;\n- resolve an explicit spoken self-correction;\n- fix punctuation, capitalisation, and paragraph breaks;\n- repair obvious grammar caused by speech recognition.\n\nDo not answer, summarize, explain, professionalize, soften, add requirements, infer missing intent, or invent facts.\n\nReturn only the cleaned dictated text. Do not add a preamble, label, quotation marks, XML tags, or a Markdown fence.",
       "useSystemInstructions": true
     }
   ],
   "modeConfigs": [],
   "vocabularyWords": [
-    {
-      "word": "Underbite"
-    },
-    {
-      "word": "Lookout"
-    },
-    {
-      "word": "Lighthouse"
-    },
-    {
-      "word": "Corkboard"
-    },
-    {
-      "word": "Command Centre"
-    },
-    {
-      "word": "Shelf"
-    },
-    {
-      "word": "IQS"
-    },
-    {
-      "word": "Tomas"
-    },
-    {
-      "word": "Stu"
-    },
-    {
-      "word": "Railway"
-    },
-    {
-      "word": "Supabase"
-    },
-    {
-      "word": "MongoDB"
-    },
-    {
-      "word": "Vercel"
-    },
-    {
-      "word": "AWS SES"
-    },
-    {
-      "word": "Wispr Flow"
-    },
-    {
-      "word": "Superwhisper"
-    },
-    {
-      "word": "BOYA Magic 02"
-    },
-    {
-      "word": "Claude"
-    },
-    {
-      "word": "Codex"
-    },
-    {
-      "word": "Cursor"
-    },
-    {
-      "word": "MCP"
-    },
-    {
-      "word": "PRD"
-    },
-    {
-      "word": "SDLC"
-    },
-    {
-      "word": "chromatic homotopy"
-    },
-    {
-      "word": "v1-periodic"
-    },
-    {
-      "word": "spectral sequence"
-    }
+    { "word": "Underbite" },
+    { "word": "Lookout" },
+    { "word": "Lighthouse" },
+    { "word": "Corkboard" },
+    { "word": "Command Centre" },
+    { "word": "Shelf" },
+    { "word": "IQS" },
+    { "word": "Tomas" },
+    { "word": "Stu" },
+    { "word": "Railway" },
+    { "word": "Supabase" },
+    { "word": "MongoDB" },
+    { "word": "Vercel" },
+    { "word": "AWS SES" },
+    { "word": "Wispr Flow" },
+    { "word": "Superwhisper" },
+    { "word": "BOYA Magic 02" },
+    { "word": "Claude" },
+    { "word": "Codex" },
+    { "word": "Cursor" },
+    { "word": "MCP" },
+    { "word": "PRD" },
+    { "word": "SDLC" },
+    { "word": "chromatic homotopy" },
+    { "word": "v1-periodic" },
+    { "word": "spectral sequence" }
   ],
   "wordReplacements": {
-    "under bite": "Underbite",
+    "under bite, underbyte, under bit": "Underbite",
     "light house": "Lighthouse",
     "cork board": "Corkboard",
     "command center": "Command Centre",

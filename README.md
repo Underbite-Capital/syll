@@ -1,83 +1,76 @@
-# David Voice Local Dictation
+# VoiceInk Personal Dictionary
 
-## Outcome
+A small downstream VoiceInk build for David: better terminology, safer dictation cleanup, and optional local word boosting—without replacing VoiceInk's recorder, shortcuts, model management, or cursor delivery.
 
-Give David a same-day, private macOS dictation experiment that determines whether local VoiceInk + BOYA + terminology correction is close enough to Wispr Flow to justify any further work.
+## Current status
 
-## Current phase
+The active implementation lives on `codex/voiceink-personal-dictionary`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present; CI can prove that the overlay applies cleanly. Xcode build, microphone, insertion, cleanup quality, and recognition quality still require David's Mac and judgement.
 
-Human-validation spike. The ad-hoc-signed arm64 app builds and launches; dictionary/configuration artifacts are ready. macOS permission grants, BOYA testing and the 20-prompt adoption evidence remain David's acceptance gate.
-
-## Decision contract
-
-- **Decision this project must enable:** Could David actually live with this instead of immediately returning to Wispr Flow?
-- **Review test:** BOYA 20-clip comparison plus 20 real prompts across ChatGPT, Claude and Cursor.
-- **Commercial owner:** David.
-- **Technical owner:** David / Codex for the bounded spike.
-- **Human authority gates:** Accessibility permission, acceptance, preference and Done remain David's decisions.
-
-## Recommended direction
-
-Use current VoiceInk as the shell. Begin with Parakeet V3, compare the same captured audio with Whisper Large V3 Turbo, import the seeded dictionary, keep cleanup OFF for the baseline and do not add Voxtral or another provider before the human trial.
-
-## Evidence and provenance
-
-- Project key: `PROJECT-DAVID-VOICE-LOCAL-DICTATION`
-- VoiceInk upstream: `Beingpax/VoiceInk` at `fda316996d87bc0c7b68d11a741b5c5aec8d8617` (2026-08-19).
-- Supplied brief: `reference/spike-brief.txt`, SHA-256 `167cf3a16d742f9153b5e368d04a3c88ff7325afd06c8d88f34f66692d1c5a52`.
-- Research cutoff: 2026-08-20.
-- Research intensity: Light, because this is a private, reversible, one-user experiment.
-- Source/claim ledgers: `research/source-register.csv` and `research/claim-evidence.csv`.
-
-## Product and technical map
+## Scope
 
 ```text
-BOYA Magic 02
-  -> VoiceInk CoreAudio capture + push-to-talk
-  -> Parakeet V3 (first) or Whisper Large V3 Turbo (comparator)
-  -> paragraph formatting if enabled
-  -> deterministic word replacements (global Dictionary corrections toggle)
-  -> optional AI enhancement using David cleanup
-  -> cursor paste
-  -> Auto Send None
+existing VoiceInk capture and transcription
+  -> optional FluidAudio vocabulary boosting
+  -> one-pass deterministic alias correction
+  -> optional guarded cleanup
+  -> existing VoiceInk delivery
 ```
 
-VoiceInk owns microphone capture, permissions, global shortcuts, recorder UI, focused-app context, model management and delivery. The spike adds only versioned dictionary/configuration artifacts and a two-file global dictionary toggle.
+Included:
 
-## Verification status
+- one Personal Dictionary surface with preferred spellings and aliases;
+- non-cascading Unicode-aware deterministic correction;
+- exact dictionary spellings supplied to cleanup;
+- five-second, one-attempt cleanup for cleanup-named prompts;
+- deterministic validation and fallback to corrected transcription;
+- optional fail-open FluidAudio CTC vocabulary boosting;
+- focused tests, reproducible preparation, and cleanup documentation.
 
-- `scripts/validate_project.py`: passes.
-- Dictionary parser: 26 terms and 18 replacement groups; generated JSON parses.
-- VoiceInk prerequisites: macOS 26.5.2 arm64, Xcode 26.6, Git and Swift available.
-- Local arm64 Debug build completed successfully with ad-hoc signing; deep code-signature verification passes.
-- Runtime launch reached VoiceInk's permissions screen. No OS permission was granted by Codex.
-- Microphone/Accessibility, BOYA selection, three-app paste and no-submit remain David-run checks because they require security-sensitive permission and live speech.
-- No ASR winner, latency or Flow preference is claimed yet.
+Excluded:
 
-## Risks and unknowns
+- a new recorder or hotkey system;
+- hosted services or team vocabulary;
+- automatic dictionary learning;
+- a second cleanup judge agent;
+- streaming-provider boosting;
+- autonomous acceptance in place of David using the app.
 
-1. Ad-hoc rebuilds may prompt for macOS permissions again.
-2. The BOYA's exact device identity and audio quality are not observable while disconnected.
-3. Generic model recommendations may not transfer to David's speech and terminology.
-4. Existing/migrated VoiceInk modes can enable Auto Send even though the default is None; inspect the active mode.
-5. Optional cleanup can change meaning; any semantic drift means it stays OFF.
-6. GitHub registration is blocked until the local `gh` authentication is repaired.
+## Prepare the app
 
-## Immediate next decision
+```bash
+git checkout codex/voiceink-personal-dictionary
+python3 scripts/verify_overlay.py
+./scripts/prepare-app.sh --reset
+open app/VoiceInk.xcodeproj
+```
 
-Grant only the required permissions and complete the shell smoke test in `TRY-IT.md`. If it passes, record the BOYA corpus and 20 prompts. If it does not pass within the 90-minute shell bound, stop and record the exact blocker rather than expanding the build.
+The full path includes experimental native boosting. To prepare the safer dictionary + cleanup build:
 
-## Workspace map
+```bash
+./scripts/prepare-app.sh --core-only --reset
+```
 
-- `TRY-IT.md` — exact same-day setup and trial.
-- `SPIKE-REPORT.md` — concise evidence-backed status and final questions.
-- `dictionary.yaml` — human-editable source of truth.
-- `cleanup-prompt.txt` — exact optional cleanup contract.
-- `prototype/VoiceInk_David_Settings.json` — VoiceInk import artifact generated from the dictionary/prompt.
-- `evidence/test-corpus.md` — 20 diagnostic utterances.
-- `evidence/benchmark.csv` — two-model results table.
-- `evidence/20-prompt-trial.csv` — adoption log.
-- `app/` — clean VoiceInk submodule pinned to the inspected upstream commit.
-- `patches/voiceink-dictionary-toggle.patch` — reproducible two-file source delta against the pinned VoiceInk commit.
-- `research/` — Light two-lens diligence and provenance.
-- `reference/` — byte-identical supplied brief.
+The script refuses to overwrite dirty work unless `--reset` is explicit.
+
+## Source of truth
+
+- VoiceInk upstream: `Beingpax/VoiceInk@3c211dab63454f18cf3f8b58750ec6bf3f5b4d17`
+- Core replacements/new files: `overlays/core/`
+- Optional boosting adapter: `overlays/boosting/`
+- Minimal edits to existing upstream files: `patches/`
+- Human-editable terminology seed: `dictionary.yaml`
+- Importable starting configuration: `prototype/VoiceInk_David_Settings.json`
+- Detailed handoff: `docs/IMPLEMENTATION-HANDOFF.md`
+- Acceptance checklist: `docs/MANUAL-QA.md`
+
+Do not make ad hoc edits under `app/` and then forget them. Port accepted fixes back into an overlay or patch so a clean checkout can reproduce the build.
+
+## Why this repository is still a submodule overlay
+
+The old spike already used VoiceInk as a submodule. Rather than pretending that wrapper was a fork, this branch makes the arrangement explicit and reproducible. It preserves a small downstream delta and an immediate `--core-only` escape hatch. A future maintainer can convert it to a conventional fork after the product proves useful; doing that before the human trial adds repository work without improving dictation.
+
+## Historical evidence
+
+The original spike report, research, test corpus, and benchmark templates remain in place. They are evidence of what was attempted, not proof that the product worked.
+
+VoiceInk is GPL-3.0. Any distributed modified build must continue to comply with its licence.
