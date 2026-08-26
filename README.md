@@ -4,7 +4,7 @@ A small downstream VoiceInk build for David: better terminology, safer dictation
 
 ## Current status
 
-The active implementation lives on `codex/voiceink-personal-dictionary`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present; CI can prove that the overlay applies cleanly. Xcode build, microphone, insertion, cleanup quality, and recognition quality still require David's Mac and judgement.
+The active implementation lives on `codex/voiceink-personal-dictionary`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present, with a workflow configured to verify clean application. No workflow run was observed during this implementation session, and Xcode build, microphone, insertion, cleanup quality, and recognition quality still require David's Mac and judgement.
 
 ## Scope
 

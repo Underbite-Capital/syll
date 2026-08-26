@@ -88,6 +88,9 @@ enum PersonalDictionaryService {
             return String(localized: "Preferred spelling is required")
         }
 
+        let previousPreferred = existing?.replacementText.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
         let normalized = normalizedAliases(aliases, preferredText: preferred)
         let proposedTerms = Set(
             ([preferred] + normalized).map { $0.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) }
@@ -132,6 +135,15 @@ enum PersonalDictionaryService {
         }
 
         ensureVocabularyWord(preferred, context: context)
+        if let previousPreferred,
+            previousPreferred.caseInsensitiveCompare(preferred) != .orderedSame
+        {
+            removeVocabularyWordIfUnused(
+                previousPreferred,
+                excluding: replacement,
+                context: context
+            )
+        }
 
         do {
             try context.save()
@@ -323,11 +335,32 @@ enum PersonalDictionaryService {
     private static func ensureVocabularyWord(_ preferredText: String, context: ModelContext) {
         let descriptor = FetchDescriptor<VocabularyWord>()
         guard let words = try? context.fetch(descriptor) else { return }
-        guard !words.contains(where: {
+        if let existing = words.first(where: {
             $0.word.caseInsensitiveCompare(preferredText) == .orderedSame
-        }) else {
+        }) {
+            existing.word = preferredText
             return
         }
         context.insert(VocabularyWord(word: preferredText))
+    }
+
+    private static func removeVocabularyWordIfUnused(
+        _ preferredText: String,
+        excluding replacement: WordReplacement,
+        context: ModelContext
+    ) {
+        let replacements = (try? context.fetch(FetchDescriptor<WordReplacement>())) ?? []
+        let isStillUsed = replacements.contains { other in
+            other.persistentModelID != replacement.persistentModelID
+                && other.replacementText.caseInsensitiveCompare(preferredText) == .orderedSame
+        }
+        guard !isStillUsed else { return }
+
+        let words = (try? context.fetch(FetchDescriptor<VocabularyWord>())) ?? []
+        for word in words
+        where word.word.caseInsensitiveCompare(preferredText) == .orderedSame
+        {
+            context.delete(word)
+        }
     }
 }

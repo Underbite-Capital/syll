@@ -2,7 +2,7 @@
 
 **Branch:** `codex/voiceink-personal-dictionary`  
 **VoiceInk base:** `Beingpax/VoiceInk@3c211dab63454f18cf3f8b58750ec6bf3f5b4d17`  
-**Status:** implementation candidate; source-reviewed and patch-application checked, but not yet accepted on David's Mac.
+**Status:** implementation candidate; source-reviewed and statically checked, but exact submodule patch application, Xcode compilation, and human acceptance remain pending.
 
 ## What this branch is
 
@@ -58,8 +58,9 @@ The first enabled use may download an additional local CTC model. The core-only 
 
 - Exact upstream source paths and APIs were inspected at the pinned revisions.
 - Static overlay verification runs in `scripts/verify_overlay.py`.
-- CI initializes the real public submodule and checks both core-only and full overlay application with `git apply --check` and `git diff --check`.
+- The included GitHub Actions workflow is configured to initialize the public submodule and check both core-only and full overlay application with `git apply --check` and `git diff --check`. No workflow run was observed during this implementation session, so do not count this as passed evidence yet.
 - The pure corrector has focused XCTest coverage for case-insensitive aliases, longest-match behaviour, boundaries, punctuation, multiple occurrences, and non-cascading replacement.
+- The cleanup validator has focused tests for unchanged numbers with punctuation edits, changed numbers, protected spellings, assistant preambles, and non-cleanup prompts.
 
 ## Not yet verified
 
@@ -78,7 +79,7 @@ Do not turn these into confident claims:
 2. Run `./scripts/prepare-app.sh --core-only --reset`.
 3. Build the `VoiceInk` scheme in Xcode before touching boosting.
 4. Fix compile errors only in `overlays/core` or `patches/core.patch`; do not edit generated `app/` as the source of truth.
-5. Run the dictionary XCTest file.
+5. Run the dictionary and cleanup-validator XCTest files.
 6. Manually verify add/edit/disable/delete and legacy migration.
 7. Verify cleanup failure still inserts the deterministic transcript.
 8. Only then prepare the full overlay and test boosting off, then on.

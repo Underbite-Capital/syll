@@ -15,9 +15,20 @@ jobs:
       - run: python scripts/validate_project.py --template
       - run: python scripts/verify_overlay.py
 
-  apply-core-overlay:
+  apply-overlay:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [core, full]
     steps:
       - uses: actions/checkout@v4
-      - run: ./scripts/prepare-app.sh --core-only --reset
+      - name: Prepare exact VoiceInk overlay
+        shell: bash
+        run: |
+          if [[ "${{ matrix.mode }}" == "core" ]]; then
+            ./scripts/prepare-app.sh --core-only --reset
+          else
+            ./scripts/prepare-app.sh --reset
+          fi
       - run: git -C app diff --check

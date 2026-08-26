@@ -1,0 +1,12 @@
+diff --git a/VoiceInk.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved b/VoiceInk.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+--- a/VoiceInk.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
++++ b/VoiceInk.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+@@ -20,7 +20,7 @@
+       "location" : "https://github.com/FluidInference/FluidAudio",
+       "state" : {
+         "branch" : "main",
+-        "revision" : "c7b13a3942e79893f3bd76bfe3b1ed8d03e0bfc7"
++        "revision" : "6428e29186573c6d33c598e25d460e6690bc0ee1"
+       }
+     },
+     {

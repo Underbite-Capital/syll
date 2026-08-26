@@ -70,7 +70,7 @@ enum CleanupOutputValidator {
 
     private static func numericTokens(in text: String) -> Set<String> {
         guard let regex = try? NSRegularExpression(
-            pattern: #"(?<![\p{L}\p{N}])[-+]?\d[\d.,:%/\-]*(?![\p{L}\p{N}])"#
+            pattern: #"(?<![\p{L}\p{N}])[-+]?\d(?:[\d.,:/\-]*\d)?%?(?![\p{L}\p{N}])"#
         ) else {
             return []
         }
