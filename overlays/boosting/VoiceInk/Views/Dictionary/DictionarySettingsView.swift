@@ -5,10 +5,12 @@ struct DictionarySettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(PersonalDictionaryService.isCorrectionsEnabledKey)
     private var isCorrectionsEnabled = true
+    @AppStorage(PersonalDictionaryService.isRecognitionBoostingEnabledKey)
+    private var isRecognitionBoostingEnabled = false
     @State private var isShowingSettings = false
 
     private let dictionaryInfoMessage: LocalizedStringKey =
-        "One personal dictionary drives exact spellings, spoken aliases, and cleanup protection."
+        "One personal dictionary now drives exact spellings, spoken aliases, cleanup protection, and optional local Parakeet recognition boosting."
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,6 +65,28 @@ struct DictionarySettingsView: View {
                     }
                 }
                 .toggleStyle(.switch)
+
+                Divider()
+
+                Toggle(isOn: $isRecognitionBoostingEnabled) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Improve local Parakeet recognition")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Use acoustic vocabulary boosting before correction. The first use downloads an additional local model; failures always fall back to normal transcription.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+
+                if isRecognitionBoostingEnabled {
+                    Label(
+                        "Boosting is intentionally limited to supported local FluidAudio batch paths. Streaming and other providers keep their ordinary behaviour.",
+                        systemImage: "info.circle"
+                    )
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                }
             }
         }
     }

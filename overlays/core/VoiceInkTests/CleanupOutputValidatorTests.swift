@@ -23,6 +23,49 @@ final class CleanupOutputValidatorTests: XCTestCase {
         )
     }
 
+    func testRejectsDroppedRepeatedNumber() {
+        XCTAssertThrowsError(
+            try CleanupOutputValidator.validatedText(
+                candidate: "Send 5 now.",
+                source: "Send 5 and 5 now.",
+                promptTitle: "David cleanup",
+                protectedTerms: []
+            )
+        )
+    }
+
+    func testRejectsInventedNumber() {
+        XCTAssertThrowsError(
+            try CleanupOutputValidator.validatedText(
+                candidate: "Send it on 6 September.",
+                source: "Send it in September.",
+                promptTitle: "David cleanup",
+                protectedTerms: []
+            )
+        )
+    }
+
+    func testRejectsDuplicatedNumber() {
+        XCTAssertThrowsError(
+            try CleanupOutputValidator.validatedText(
+                candidate: "Send 5 and 5 now.",
+                source: "Send 5 now.",
+                promptTitle: "David cleanup",
+                protectedTerms: []
+            )
+        )
+    }
+
+    func testAllowsUnchangedRepeatedNumbers() throws {
+        let result = try CleanupOutputValidator.validatedText(
+            candidate: "Send 5 and 5 now.",
+            source: "Send 5, and 5 now.",
+            promptTitle: "David cleanup",
+            protectedTerms: []
+        )
+        XCTAssertEqual(result, "Send 5 and 5 now.")
+    }
+
     func testRejectsChangedProtectedSpelling() {
         XCTAssertThrowsError(
             try CleanupOutputValidator.validatedText(

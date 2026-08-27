@@ -4,7 +4,7 @@ A small downstream VoiceInk build for David: better terminology, safer dictation
 
 ## Current status
 
-The active implementation lives on `codex/voiceink-personal-dictionary`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present, with a workflow configured to verify clean application. No workflow run was observed during this implementation session, and Xcode build, microphone, insertion, cleanup quality, and recognition quality still require David's Mac and judgement.
+The active implementation lives on `codex/voiceink-personal-dictionary`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present, with a workflow configured to verify clean application. A signed local CORE build and its focused tests passed on David's Mac; microphone, insertion, cleanup quality, and recognition quality still require David's direct judgement.
 
 ## Scope
 
@@ -40,14 +40,17 @@ Excluded:
 ```bash
 git checkout codex/voiceink-personal-dictionary
 python3 scripts/verify_overlay.py
-./scripts/prepare-app.sh --reset
-open app/VoiceInk.xcodeproj
+./scripts/prepare-app.sh --core-only --reset
+./scripts/build-local-app.sh --core-only
 ```
 
-The full path includes experimental native boosting. To prepare the safer dictionary + cleanup build:
+The commands above are the safer dictionary + cleanup path. The build is ad-hoc signed with reduced local entitlements and is not installed or launched automatically.
+
+Only after core human acceptance, prepare the experimental native-boosting path with:
 
 ```bash
-./scripts/prepare-app.sh --core-only --reset
+./scripts/prepare-app.sh --reset
+./scripts/build-local-app.sh --full
 ```
 
 The script refuses to overwrite dirty work unless `--reset` is explicit.

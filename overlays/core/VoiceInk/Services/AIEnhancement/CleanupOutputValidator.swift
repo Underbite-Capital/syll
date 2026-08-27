@@ -47,8 +47,8 @@ enum CleanupOutputValidator {
 
         let sourceNumbers = numericTokens(in: source)
         let candidateNumbers = numericTokens(in: trimmedCandidate)
-        if !sourceNumbers.isSubset(of: candidateNumbers) {
-            throw rejection("one or more numbers changed or disappeared")
+        if sourceNumbers != candidateNumbers {
+            throw rejection("one or more numbers changed, appeared, disappeared, or changed frequency")
         }
 
         for term in protectedTerms where source.contains(term) {
@@ -68,17 +68,18 @@ enum CleanupOutputValidator {
         text.split(whereSeparator: { $0.isWhitespace }).count
     }
 
-    private static func numericTokens(in text: String) -> Set<String> {
+    private static func numericTokens(in text: String) -> [String: Int] {
         guard let regex = try? NSRegularExpression(
             pattern: #"(?<![\p{L}\p{N}])[-+]?\d(?:[\d.,:/\-]*\d)?%?(?![\p{L}\p{N}])"#
         ) else {
-            return []
+            return [:]
         }
 
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        return Set(regex.matches(in: text, range: range).compactMap { match in
+        let tokens: [String] = regex.matches(in: text, range: range).compactMap { match -> String? in
             guard let swiftRange = Range(match.range, in: text) else { return nil }
             return String(text[swiftRange])
-        })
+        }
+        return Dictionary(tokens.map { ($0, 1) }, uniquingKeysWith: +)
     }
 }

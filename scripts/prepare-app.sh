@@ -45,6 +45,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 cd "$ROOT_DIR"
+if [[ "$MODE" == "core" ]]; then
+  python3 "$ROOT_DIR/scripts/verify_overlay.py" --core-only
+else
+  python3 "$ROOT_DIR/scripts/verify_overlay.py"
+fi
+
 git submodule sync -- app
 git submodule update --init app
 
@@ -66,12 +72,24 @@ EOF
   git -C "$APP_DIR" clean -fd
 fi
 
+MUTATED=0
+restore_on_error() {
+  local status=$?
+  trap - ERR INT TERM
+  if [[ "$MUTATED" -eq 1 ]]; then
+    echo "Preparation failed; restoring app/ to exact upstream $UPSTREAM_COMMIT" >&2
+    git -C "$APP_DIR" reset --hard "$UPSTREAM_COMMIT" >/dev/null 2>&1 || true
+    git -C "$APP_DIR" clean -fd >/dev/null 2>&1 || true
+  fi
+  exit "$status"
+}
+trap restore_on_error ERR INT TERM
+
+MUTATED=1
 git -C "$APP_DIR" fetch origin "$UPSTREAM_COMMIT"
 git -C "$APP_DIR" checkout --detach "$UPSTREAM_COMMIT"
 
-cp -R "$ROOT_DIR/overlays/core/." "$APP_DIR/"
 git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/core.patch"
-git -C "$APP_DIR" apply "$ROOT_DIR/patches/core.patch"
 
 if [[ "$MODE" == "full" ]]; then
   if [[ ! -d "$ROOT_DIR/overlays/boosting" || ! -f "$ROOT_DIR/patches/boosting.patch" ]]; then
@@ -79,12 +97,19 @@ if [[ "$MODE" == "full" ]]; then
     exit 1
   fi
 
-  cp -R "$ROOT_DIR/overlays/boosting/." "$APP_DIR/"
   git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/boosting.patch"
+fi
+
+cp -R "$ROOT_DIR/overlays/core/." "$APP_DIR/"
+git -C "$APP_DIR" apply "$ROOT_DIR/patches/core.patch"
+
+if [[ "$MODE" == "full" ]]; then
+  cp -R "$ROOT_DIR/overlays/boosting/." "$APP_DIR/"
   git -C "$APP_DIR" apply "$ROOT_DIR/patches/boosting.patch"
 fi
 
 git -C "$APP_DIR" diff --check
+trap - ERR INT TERM
 
 cat <<EOF
 Prepared VoiceInk at $UPSTREAM_COMMIT

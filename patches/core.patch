@@ -10,7 +10,7 @@ diff --git a/VoiceInk/Services/AIEnhancement/AIEnhancementService.swift b/VoiceI
      }
      private let rateLimitInterval: TimeInterval = 1.0
      private var lastRequestTime: Date?
-@@ -478,11 +478,22 @@ class AIEnhancementService: ObservableObject {
+@@ -478,15 +478,25 @@ class AIEnhancementService: ObservableObject {
          let promptName = configuration.prompt?.title
  
          do {
