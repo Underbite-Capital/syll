@@ -48,12 +48,15 @@ enum CleanupOutputValidator {
         let sourceNumbers = numericTokens(in: source)
         let candidateNumbers = numericTokens(in: trimmedCandidate)
         if sourceNumbers != candidateNumbers {
-            throw rejection("one or more numbers changed, appeared, disappeared, or changed frequency")
+            throw rejection("one or more numbers changed, appeared, disappeared, changed frequency, or changed order")
         }
 
-        for term in protectedTerms where source.contains(term) {
-            if !trimmedCandidate.contains(term) {
-                throw rejection("the protected spelling '\(term)' changed or disappeared")
+        for term in protectedTerms {
+            let sourceCount = PersonalDictionaryCorrector.boundedOccurrenceCount(of: term, in: source)
+            guard sourceCount > 0 else { continue }
+            let candidateCount = PersonalDictionaryCorrector.boundedOccurrenceCount(of: term, in: trimmedCandidate)
+            if candidateCount != sourceCount {
+                throw rejection("the protected spelling '\(term)' changed, disappeared, or changed frequency")
             }
         }
 
@@ -68,18 +71,17 @@ enum CleanupOutputValidator {
         text.split(whereSeparator: { $0.isWhitespace }).count
     }
 
-    private static func numericTokens(in text: String) -> [String: Int] {
+    private static func numericTokens(in text: String) -> [String] {
         guard let regex = try? NSRegularExpression(
             pattern: #"(?<![\p{L}\p{N}])[-+]?\d(?:[\d.,:/\-]*\d)?%?(?![\p{L}\p{N}])"#
         ) else {
-            return [:]
+            return []
         }
 
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        let tokens: [String] = regex.matches(in: text, range: range).compactMap { match -> String? in
+        return regex.matches(in: text, range: range).compactMap { match -> String? in
             guard let swiftRange = Range(match.range, in: text) else { return nil }
             return String(text[swiftRange])
         }
-        return Dictionary(tokens.map { ($0, 1) }, uniquingKeysWith: +)
     }
 }

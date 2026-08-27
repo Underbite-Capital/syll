@@ -25,17 +25,8 @@ enum PersonalDictionaryCorrector {
             }
 
             for alias in aliases {
-                let escaped = NSRegularExpression.escapedPattern(for: alias)
-                let pattern: String
-                if usesWordBoundaries(for: alias) {
-                    let wordCharacter = "[[\\p{L}\\p{M}\\p{N}]-[\\p{scx=Han}\\p{scx=Hiragana}\\p{scx=Katakana}\\p{scx=Hangul}\\p{scx=Thai}]]"
-                    pattern = "(?<!\(wordCharacter))\(escaped)(?!\(wordCharacter))"
-                } else {
-                    pattern = escaped
-                }
-
                 guard let regex = try? NSRegularExpression(
-                    pattern: pattern,
+                    pattern: boundedMatchPattern(for: alias),
                     options: [.caseInsensitive]
                 ) else {
                     continue
@@ -79,6 +70,30 @@ enum PersonalDictionaryCorrector {
             result.replaceCharacters(in: candidate.range, with: candidate.replacement)
         }
         return result as String
+    }
+
+    /// Case-sensitive count of exact preferred-spelling occurrences using the
+    /// same boundary class as alias matching.
+    static func boundedOccurrenceCount(of term: String, in text: String) -> Int {
+        let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !text.isEmpty else { return 0 }
+        guard let regex = try? NSRegularExpression(
+            pattern: boundedMatchPattern(for: trimmed),
+            options: []
+        ) else {
+            return 0
+        }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.numberOfMatches(in: text, options: [], range: range)
+    }
+
+    private static func boundedMatchPattern(for term: String) -> String {
+        let escaped = NSRegularExpression.escapedPattern(for: term)
+        if usesWordBoundaries(for: term) {
+            let wordCharacter = "[[\\p{L}\\p{M}\\p{N}]-[\\p{scx=Han}\\p{scx=Hiragana}\\p{scx=Katakana}\\p{scx=Hangul}\\p{scx=Thai}]]"
+            return "(?<!\(wordCharacter))\(escaped)(?!\(wordCharacter))"
+        }
+        return escaped
     }
 
     private static func usesWordBoundaries(for text: String) -> Bool {

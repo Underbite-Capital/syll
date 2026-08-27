@@ -39,7 +39,7 @@ Excluded:
 
 ```bash
 git checkout codex/voiceink-personal-dictionary
-python3 scripts/verify_overlay.py
+python3 scripts/verify_overlay.py --core-only
 ./scripts/prepare-app.sh --core-only --reset
 ./scripts/build-local-app.sh --core-only
 ```
@@ -49,6 +49,7 @@ The commands above are the safer dictionary + cleanup path. The build is ad-hoc 
 Only after core human acceptance, prepare the experimental native-boosting path with:
 
 ```bash
+python3 scripts/verify_overlay.py
 ./scripts/prepare-app.sh --reset
 ./scripts/build-local-app.sh --full
 ```

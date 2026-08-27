@@ -4,7 +4,7 @@ Run core-only first. David performs these checks in the actual apps he dictates 
 
 ## Build and baseline
 
-- [ ] `python3 scripts/verify_overlay.py` passes.
+- [ ] `python3 scripts/verify_overlay.py --core-only` passes.
 - [ ] `./scripts/prepare-app.sh --core-only --reset` completes.
 - [ ] CORE retains FluidAudio `c7b13a3942e79893f3bd76bfe3b1ed8d03e0bfc7` and contains no boosting adapter/control.
 - [ ] `./scripts/build-local-app.sh --core-only` produces a verified ad-hoc-signed app with no CloudKit, push, or keychain-group entitlement.
@@ -39,7 +39,7 @@ Use the prompt title `David cleanup` or `Clean Dictation` so the validator is ac
 - [ ] A response that drops one occurrence of a repeated number is rejected.
 - [ ] A response that adds or duplicates a number is rejected.
 
-For deterministic fallback checks, first record the current Local CLI command and timeout. Use output mode **Paste** and auto-send **None**, then restore the saved settings afterward.
+For deterministic fallback checks, first record the current Local CLI command and timeout. Use output mode **Paste** and auto-send **None**. For the timeout check, save the current Local CLI timeout, set it to `5`, use `/bin/sleep 10`, then restore the saved command and timeout afterward. Do not change Local CLI source in this pass; a universal 5-second Local CLI default is a later David decision.
 
 | Check | Local CLI command | Expected result |
 | --- | --- | --- |

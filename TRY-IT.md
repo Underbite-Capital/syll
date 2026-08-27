@@ -20,13 +20,6 @@ This leaves the transcript at the cursor. Releasing push-to-talk must never subm
 5. In **Audio**, choose **Selected Microphone**, click **Refresh Microphones**, and select **BOYA Magic 02**. Also verify the input meter in **System Settings → Sound → Input**.
 6. In **Settings → Shortcuts**, set the primary shortcut to **Push to Talk** and choose a comfortable key.
 
-The app in Downloads already includes the dictionary-toggle patch. To reproduce that source state from a fresh project checkout, run:
-
-```sh
-git submodule update --init app
-git -C app apply ../patches/voiceink-dictionary-toggle.patch
-```
-
 ## Import the spike configuration
 
 1. Open **Settings → Backup → Import Settings → Import**.

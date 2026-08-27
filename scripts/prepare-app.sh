@@ -76,10 +76,22 @@ MUTATED=0
 restore_on_error() {
   local status=$?
   trap - ERR INT TERM
+  set +e
   if [[ "$MUTATED" -eq 1 ]]; then
     echo "Preparation failed; restoring app/ to exact upstream $UPSTREAM_COMMIT" >&2
-    git -C "$APP_DIR" reset --hard "$UPSTREAM_COMMIT" >/dev/null 2>&1 || true
-    git -C "$APP_DIR" clean -fd >/dev/null 2>&1 || true
+    git -C "$APP_DIR" reset --hard "$UPSTREAM_COMMIT"
+    local reset_status=$?
+    git -C "$APP_DIR" clean -fd
+    local clean_status=$?
+    if [[ "$reset_status" -ne 0 ]]; then
+      echo "ERROR: git reset --hard $UPSTREAM_COMMIT failed (exit $reset_status) while restoring app/" >&2
+    fi
+    if [[ "$clean_status" -ne 0 ]]; then
+      echo "ERROR: git clean -fd failed (exit $clean_status) while restoring app/" >&2
+    fi
+    if [[ "$reset_status" -ne 0 || "$clean_status" -ne 0 ]]; then
+      echo "ERROR: restore of app/ did not fully succeed. Do not treat this as a clean restore." >&2
+    fi
   fi
   exit "$status"
 }

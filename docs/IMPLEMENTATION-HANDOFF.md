@@ -11,7 +11,7 @@ This repository remains a thin, reproducible downstream layer over VoiceInk rath
 Start CORE-ONLY:
 
 ```bash
-python3 scripts/verify_overlay.py
+python3 scripts/verify_overlay.py --core-only
 ./scripts/prepare-app.sh --core-only --reset
 ./scripts/build-local-app.sh --core-only
 ```
@@ -40,7 +40,7 @@ The app continues to store entries in VoiceInk's existing `WordReplacement` and 
 
 Cleanup still uses VoiceInk's existing enhancement provider and delivery pipeline. The branch changes the default enhancement timeout from seven seconds to five seconds and gives prompts with `cleanup` or `clean dictation` in the title one attempt.
 
-`CleanupOutputValidator` rejects a cleanup result when it is empty, wrapped in a code fence, begins like an assistant answer, changes length implausibly, changes the exact frequency of any numeric token, or loses an exact preferred dictionary spelling already present in the corrected source. Number formatting is deliberately conservative: changing `1,000` to `1000` is rejected and falls back. Rejection throws through VoiceInk's existing enhancement-error path, leaving the deterministic corrected transcript as the delivery fallback.
+`CleanupOutputValidator` rejects a cleanup result when it is empty, wrapped in a code fence, begins like an assistant answer, changes length implausibly, changes the ordered sequence of exact numeric tokens, or changes the bounded occurrence count of an exact preferred dictionary spelling already present in the corrected source. Protected spellings use the same Unicode word-boundary class as the corrector and stay case-sensitive. Number formatting is deliberately conservative: changing `1,000` to `1000` is rejected and falls back. Rejection throws through VoiceInk's existing enhancement-error path, leaving the deterministic corrected transcript as the delivery fallback.
 
 This is deliberately not a second model or judge agent.
 
@@ -58,7 +58,7 @@ The first enabled use may download an additional local CTC model. The core-only 
 - Preparation checks both core-only and full overlay application with `git apply --check` and `git diff --check`.
 - The local build is only acceptable when `codesign --verify --deep --strict` passes and its entitlements contain no CloudKit, push, or keychain access groups.
 - The pure corrector has focused XCTest coverage for case-insensitive aliases, longest-match behaviour, boundaries, punctuation, multiple occurrences, and non-cascading replacement.
-- The cleanup validator has focused tests for unchanged repeated numbers, changed numbers, removed repetitions, invented/duplicated numbers, protected spellings, assistant preambles, and non-cleanup prompts.
+- The cleanup validator has focused tests for unchanged repeated numbers, changed numbers, removed repetitions, invented/duplicated numbers, reordered numbers, protected spellings including bounded counts and punctuation, assistant preambles, and non-cleanup prompts.
 - Do not mark XCTest passed if the app-hosted runner fails before bootstrap. Do not launch that runner against live data before the protected backup gate.
 
 ## Not yet verified
@@ -78,8 +78,8 @@ Do not turn these into confident claims:
 - CORE-ONLY and full preparation both applied cleanly; the workspace was returned to CORE-ONLY afterward.
 - Two clean CORE-ONLY preparations produced the same 12-file SHA-256 manifest: `a81fe2eaaa1510c205e260ea0ce71c7adf2932d65b4a8789f1431ff677e069f5`.
 - CORE-ONLY compiled with Xcode 26.6 on macOS 26.5.2 using `LOCAL_BUILD`; inside-out ad-hoc signing and reduced-entitlement verification passed.
-- All 15 focused tests executed and passed: 6 personal-dictionary corrector tests and 9 cleanup-validator tests. Result bundle: `build/voiceink-core/DerivedData/Logs/Test/Test-VoiceInk-2026.08.27_09-47-55-+0200.xcresult`.
-- A verified backup was created at `/Users/david/Documents/VoiceInk Backups/20260827-093630`; all copied SQLite stores passed `PRAGMA integrity_check` and every payload hash verifies.
+- All 20 focused tests executed and passed: 6 personal-dictionary corrector tests and 14 cleanup-validator tests. Result bundle: `build/voiceink-core-tests/DerivedData/Logs/Test/Test-VoiceInk-2026.08.27_12-03-41-+0200.xcresult`. Tests used Debug, `LOCAL_BUILD`, `CODE_SIGNING_ALLOWED=NO`, and a DerivedData tree separate from the signed CORE app.
+- A verified backup was created at `/Users/david/Documents/VoiceInk Backups/20260827-121443`; copied `*.store` files passed `PRAGMA integrity_check`, staged `*-shm` files were deleted, and the manifest hashes `*.store` plus `*.store-wal` with no shm. The older snapshot `/Users/david/Documents/VoiceInk Backups/20260827-093630` was left untouched.
 - The known-good app was used to create 57 conservative vocabulary terms and one replacement rule (`under bite, underbyte` → `Underbite`). The signed CORE candidate migrated them into the unified surface without observed duplication, retained the aliases on one Underbite row, and accepted a separate `Stu`/`stew` boundary-test entry.
 - The signed CORE candidate launched and displayed the existing history and settings. Its changed ad-hoc signature caused the expected Accessibility warning; permission was not granted.
 - Microphone, hotkey, insertion, deterministic dictation, cleanup fallback, and semantic QA remain unrun human gates.
@@ -89,8 +89,8 @@ Do not turn these into confident claims:
 1. Run the validator, CORE-ONLY preparation, and local build commands above.
 2. Confirm the prepared diff contains no boosting adapter and retains FluidAudio `c7b13a3942e79893f3bd76bfe3b1ed8d03e0bfc7`.
 3. Fix source only in the wrapper overlay or patch; never treat generated `app/` edits as source of truth.
-4. Quit VoiceInk and run `backup-voiceink.sh` with a new absolute destination outside Git. The script refuses to overwrite a destination and verifies copied SQLite stores.
-5. Run focused XCTest only after the backup exists; a runner/bootstrap failure blocks launch testing.
+4. Quit VoiceInk and run `backup-voiceink.sh` with a new absolute destination outside Git. The script refuses to overwrite a destination, integrity-checks `*.store` files, deletes staged `*-shm` files, then hashes remaining files including `*.store-wal`.
+5. Run focused XCTest only after the backup exists, using Debug, `LOCAL_BUILD`, `CODE_SIGNING_ALLOWED=NO`, and a DerivedData path that is not the signed CORE app tree. A runner/bootstrap failure blocks launch testing.
 6. Create one vocabulary-only and one replacement-only probe in the known-good app, quit it, then launch the candidate and inspect migration.
 7. Perform the CORE checks in `MANUAL-QA.md`.
 8. Only after David accepts CORE may the full overlay be prepared and boosting tested off, then on.
@@ -112,7 +112,7 @@ With VoiceInk quit, create a new backup directory explicitly:
   --destination "/Users/david/Documents/VoiceInk Backups/$(date +%Y%m%d-%H%M%S)"
 ```
 
-The backup contains the complete application-support directory, exported preferences, the known-good app when present, verified SQLite stores, and SHA-256 hashes. Restoring it is destructive and remains a separate human-approved action.
+The backup contains the complete application-support directory with staged `*-shm` files removed after SQLite integrity checks, exported preferences, the known-good app when present, verified `*.store` files, retained `*.store-wal` files, and SHA-256 hashes of those remaining files. Restoring it is destructive and remains a separate human-approved action.
 
 To reset only the prepared submodule:
 

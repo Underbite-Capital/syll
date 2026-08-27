@@ -66,6 +66,17 @@ final class CleanupOutputValidatorTests: XCTestCase {
         XCTAssertEqual(result, "Send 5 and 5 now.")
     }
 
+    func testRejectsReorderedNumbers() {
+        XCTAssertThrowsError(
+            try CleanupOutputValidator.validatedText(
+                candidate: "Send 6 then 5 now.",
+                source: "Send 5 then 6 now.",
+                promptTitle: "David cleanup",
+                protectedTerms: []
+            )
+        )
+    }
+
     func testRejectsChangedProtectedSpelling() {
         XCTAssertThrowsError(
             try CleanupOutputValidator.validatedText(
@@ -75,6 +86,48 @@ final class CleanupOutputValidatorTests: XCTestCase {
                 protectedTerms: ["Underbite"]
             )
         )
+    }
+
+    func testRejectsProtectedSpellingExpandedIntoLongerWord() {
+        XCTAssertThrowsError(
+            try CleanupOutputValidator.validatedText(
+                candidate: "Talk to Student tomorrow.",
+                source: "Talk to Stu tomorrow.",
+                promptTitle: "David cleanup",
+                protectedTerms: ["Stu"]
+            )
+        )
+    }
+
+    func testRejectsDroppedRepeatedProtectedSpelling() {
+        XCTAssertThrowsError(
+            try CleanupOutputValidator.validatedText(
+                candidate: "Ask Underbite about it.",
+                source: "Ask Underbite and Underbite about it.",
+                promptTitle: "David cleanup",
+                protectedTerms: ["Underbite"]
+            )
+        )
+    }
+
+    func testAllowsUnchangedBoundedProtectedSpelling() throws {
+        let result = try CleanupOutputValidator.validatedText(
+            candidate: "Talk to Stu tomorrow.",
+            source: "Talk to Stu tomorrow.",
+            promptTitle: "David cleanup",
+            protectedTerms: ["Stu"]
+        )
+        XCTAssertEqual(result, "Talk to Stu tomorrow.")
+    }
+
+    func testAllowsPunctuationAroundProtectedSpelling() throws {
+        let result = try CleanupOutputValidator.validatedText(
+            candidate: "Ask (Underbite), please.",
+            source: "Ask (Underbite), please.",
+            promptTitle: "David cleanup",
+            protectedTerms: ["Underbite"]
+        )
+        XCTAssertEqual(result, "Ask (Underbite), please.")
     }
 
     func testRejectsAssistantPreamble() {

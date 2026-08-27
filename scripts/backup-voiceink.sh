@@ -77,6 +77,9 @@ while IFS= read -r store; do
   fi
 done < <(find "$STAGING/Application Support/$APP_ID" -type f -name '*.store' -print)
 
+# WAL is durable; shm is a live cache and its hash is not a stable backup check.
+find "$STAGING/Application Support/$APP_ID" -type f -name '*-shm' -delete
+
 (
   cd "$STAGING"
   find . -type f ! -path './SHA256SUMS' -print0 | sort -z | xargs -0 shasum -a 256
