@@ -1,7 +1,63 @@
+diff --git a/VoiceInk/Paste/CursorPaster.swift b/VoiceInk/Paste/CursorPaster.swift
+index ef4a50f..6eaf261 100644
+--- a/VoiceInk/Paste/CursorPaster.swift
++++ b/VoiceInk/Paste/CursorPaster.swift
+@@ -102,15 +102,22 @@ class CursorPaster {
+         sessionID: String,
+         on pasteboard: NSPasteboard
+     ) {
++        // Cap at 0.5s so a follow-up user paste gets the original clipboard back.
++        // A longer delay left the transcription on the pasteboard and a Cmd+V in
++        // that window often stripped the private session marker, which skipped restore.
++        let configured = UserDefaults.standard.double(forKey: "clipboardRestoreDelay")
+         let delay = max(
+-            UserDefaults.standard.double(forKey: "clipboardRestoreDelay"),
+-            minimumClipboardRestoreDelay
++            minimumClipboardRestoreDelay,
++            min(configured > 0 ? configured : 0.25, 0.5)
+         )
+ 
+         Task { @MainActor in
+             await wait(delay)
+-            guard pasteboardStillOwnedByPasteSession(pasteboard, expectedText: expectedText, sessionID: sessionID)
+-            else {
++            guard shouldRestoreOriginalClipboard(
++                on: pasteboard,
++                expectedText: expectedText,
++                sessionID: sessionID
++            ) else {
+                 return
+             }
+             pasteboard.clearContents()
+@@ -120,13 +127,19 @@ class CursorPaster {
+         }
+     }
+ 
+-    private static func pasteboardStillOwnedByPasteSession(
+-        _ pasteboard: NSPasteboard,
++    private static func shouldRestoreOriginalClipboard(
++        on pasteboard: NSPasteboard,
+         expectedText: String,
+         sessionID: String
+     ) -> Bool {
+-        pasteboard.string(forType: .string) == expectedText
+-            && pasteboard.string(forType: ClipboardManager.pasteSessionType) == sessionID
++        let currentText = pasteboard.string(forType: .string)
++        let currentSessionID = pasteboard.string(forType: ClipboardManager.pasteSessionType)
++        if currentSessionID == sessionID {
++            return true
++        }
++        let currentNormalized = currentText?.trimmingCharacters(in: .whitespacesAndNewlines)
++        let expectedNormalized = expectedText.trimmingCharacters(in: .whitespacesAndNewlines)
++        return currentNormalized == expectedNormalized && !(currentNormalized?.isEmpty ?? true)
+     }
+ 
+     private static func pasteboardItems(from snapshot: ClipboardSnapshot) -> [NSPasteboardItem] {
 diff --git a/VoiceInk/Services/AIEnhancement/AIEnhancementService.swift b/VoiceInk/Services/AIEnhancement/AIEnhancementService.swift
+index b885d98..647487e 100644
 --- a/VoiceInk/Services/AIEnhancement/AIEnhancementService.swift
 +++ b/VoiceInk/Services/AIEnhancement/AIEnhancementService.swift
-@@ -29,7 +29,7 @@ class AIEnhancementService: ObservableObject {
+@@ -31,7 +31,7 @@ class AIEnhancementService: ObservableObject {
      private let customVocabularyService: CustomVocabularyService
      private var baseTimeout: TimeInterval {
          let stored = UserDefaults.standard.integer(forKey: "EnhancementTimeoutSeconds")
@@ -10,7 +66,7 @@ diff --git a/VoiceInk/Services/AIEnhancement/AIEnhancementService.swift b/VoiceI
      }
      private let rateLimitInterval: TimeInterval = 1.0
      private var lastRequestTime: Date?
-@@ -478,15 +478,25 @@ class AIEnhancementService: ObservableObject {
+@@ -484,15 +484,25 @@ class AIEnhancementService: ObservableObject {
          let promptName = configuration.prompt?.title
  
          do {
@@ -39,9 +95,10 @@ diff --git a/VoiceInk/Services/AIEnhancement/AIEnhancementService.swift b/VoiceI
                  promptName: promptName,
                  systemMessage: requestResult.systemMessage,
 diff --git a/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift b/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
+index 484acaf..8ffd8be 100644
 --- a/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
 +++ b/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
-@@ -93,6 +93,7 @@ class TranscriptionPipeline {
+@@ -99,6 +99,7 @@ class TranscriptionPipeline {
          }
  
          do {
@@ -49,3 +106,408 @@ diff --git a/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift b/VoiceIn
              let transcriptionStart = Date()
              var text: String
              if let session {
+diff --git a/VoiceInk/Views/Dashboard/DashboardContent.swift b/VoiceInk/Views/Dashboard/DashboardContent.swift
+index 8786e7a..d663571 100644
+--- a/VoiceInk/Views/Dashboard/DashboardContent.swift
++++ b/VoiceInk/Views/Dashboard/DashboardContent.swift
+@@ -97,6 +97,13 @@ struct DashboardContent: View {
+             refreshAccessibilityStatus()
+             updaterViewModel.checkForUpdatesIfDue()
+         }
++        .task {
++            while !Task.isCancelled {
++                refreshAccessibilityStatus()
++                if isAccessibilityEnabled { return }
++                try? await Task.sleep(nanoseconds: 250_000_000)
++            }
++        }
+         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+             refreshAccessibilityStatus()
+         }
+@@ -365,9 +372,7 @@ struct DashboardContent: View {
+     }
+ 
+     private func openAccessibilitySettings() {
+-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+-            NSWorkspace.shared.open(url)
+-        }
++        PrivacySettingsPane.accessibility.open()
+     }
+ 
+     private func openInsightsIfAvailable() {
+@@ -871,7 +876,7 @@ private struct DashboardAccessibilityReminder: View {
+                     .foregroundStyle(.primary)
+                     .lineLimit(1)
+ 
+-                Text("Required for VoiceInk shortcuts and app-wide controls to work properly.")
++                Text("Turn on VoiceInk in Privacy & Security → Accessibility. This button opens that list.")
+                     .font(.system(size: 11))
+                     .foregroundStyle(.secondary)
+                     .lineLimit(2)
+diff --git a/VoiceInk/Views/Onboarding/OnboardingCoordinator.swift b/VoiceInk/Views/Onboarding/OnboardingCoordinator.swift
+index 19dcd98..717cd65 100644
+--- a/VoiceInk/Views/Onboarding/OnboardingCoordinator.swift
++++ b/VoiceInk/Views/Onboarding/OnboardingCoordinator.swift
+@@ -23,6 +23,12 @@ final class OnboardingCoordinator: ObservableObject {
+         }
+     }
+ 
++    @Published var hasRequestedAccessibility: Bool {
++        didSet {
++            defaults.set(hasRequestedAccessibility, forKey: OnboardingStorageKeys.requestedAccessibility)
++        }
++    }
++
+     @Published var experienceStepIndex: Int {
+         didSet {
+             defaults.set(experienceStepIndex, forKey: OnboardingStorageKeys.experienceIndex)
+@@ -75,6 +81,7 @@ final class OnboardingCoordinator: ObservableObject {
+             defaults.string(forKey: OnboardingStorageKeys.activePermission)
+             ?? OnboardingPermissionKind.microphone.rawValue
+         self.hasRequestedScreenRecording = defaults.bool(forKey: OnboardingStorageKeys.requestedScreenRecording)
++        self.hasRequestedAccessibility = defaults.bool(forKey: OnboardingStorageKeys.requestedAccessibility)
+         self.experienceStepIndex = defaults.integer(forKey: OnboardingStorageKeys.experienceIndex)
+         self.storedOnboardingAIProvider =
+             defaults.string(forKey: OnboardingStorageKeys.aiProvider) ?? AIProvider.groq.rawValue
+@@ -429,6 +436,7 @@ enum OnboardingStorageKeys {
+     static let stage = "onboardingStage"
+     static let activePermission = "onboardingActivePermission"
+     static let requestedScreenRecording = "onboardingRequestedScreenRecording"
++    static let requestedAccessibility = "onboardingRequestedAccessibility"
+     static let experienceIndex = "onboardingExperienceIndex"
+     static let aiProvider = "onboardingAIProvider"
+     static let transcriptionSetupKind = "onboardingTranscriptionSetupKind"
+@@ -439,6 +447,7 @@ enum OnboardingStorageKeys {
+         stage,
+         activePermission,
+         requestedScreenRecording,
++        requestedAccessibility,
+         aiProvider,
+         transcriptionSetupKind,
+         transcriptionProvider,
+diff --git a/VoiceInk/Views/Onboarding/OnboardingPermissionController.swift b/VoiceInk/Views/Onboarding/OnboardingPermissionController.swift
+index e7d738d..203dff7 100644
+--- a/VoiceInk/Views/Onboarding/OnboardingPermissionController.swift
++++ b/VoiceInk/Views/Onboarding/OnboardingPermissionController.swift
+@@ -83,8 +83,12 @@ final class OnboardingPermissionController {
+         switch permission {
+         case .microphone:
+             return permissionStatus.requiresSettings ? String(localized: "Open Settings") : String(localized: "Allow")
+-        case .accessibility, .screenRecording:
+-            return String(localized: "Allow")
++        case .accessibility:
++            return coordinator.hasRequestedAccessibility
++                ? String(localized: "Open Settings") : String(localized: "Allow")
++        case .screenRecording:
++            return coordinator.hasRequestedScreenRecording
++                ? String(localized: "Open Settings") : String(localized: "Allow")
+         }
+     }
+ 
+@@ -102,8 +106,18 @@ final class OnboardingPermissionController {
+         case .microphone:
+             handleMicrophoneAction()
+         case .accessibility:
++            if coordinator.hasRequestedAccessibility && !AXIsProcessTrusted() {
++                openPrivacySettings(.accessibility)
++                startLivePermissionWatch()
++                return
++            }
+             requestAccessibility()
+         case .screenRecording:
++            if coordinator.hasRequestedScreenRecording && !CGPreflightScreenCaptureAccess() {
++                openPrivacySettings(.screenRecording)
++                startLivePermissionWatch()
++                return
++            }
+             requestScreenRecording()
+         }
+     }
+@@ -130,7 +144,7 @@ final class OnboardingPermissionController {
+             }
+ 
+         case .accessibility:
+-            return AXIsProcessTrusted() ? .granted : .needsAccess
++            return AXIsProcessTrustedWithOptions(nil) ? .granted : .needsAccess
+ 
+         case .screenRecording:
+             return CGPreflightScreenCaptureAccess() ? .granted : .needsAccess
+@@ -140,30 +154,48 @@ final class OnboardingPermissionController {
+     private func handleMicrophoneAction() {
+         if status(for: .microphone).requiresSettings {
+             openPrivacySettings(.microphone)
+-            startPollingPermissionStatus()
++            startLivePermissionWatch()
+             return
+         }
+ 
+         AVCaptureDevice.requestAccess(for: .audio) { [weak self] _ in
+             DispatchQueue.main.async {
+                 self?.refreshPermissionStatuses()
+-                self?.startPollingPermissionStatus()
++                self?.startLivePermissionWatch()
+             }
+         }
+     }
+ 
+     private func requestAccessibility() {
++        coordinator.hasRequestedAccessibility = true
++        startLivePermissionWatch()
++
++        if AXIsProcessTrusted() {
++            refreshPermissionStatuses()
++            return
++        }
++
+         let options: NSDictionary = [
+             kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
+         ]
+         AXIsProcessTrustedWithOptions(options)
+-        openPrivacySettings(.accessibility)
+-        startPollingPermissionStatus()
++
++        Task { @MainActor [weak self] in
++            guard let self else { return }
++            for _ in 0..<10 {
++                refreshPermissionStatuses()
++                if AXIsProcessTrusted() { return }
++                try? await Task.sleep(nanoseconds: 200_000_000)
++            }
++            if !AXIsProcessTrusted() {
++                openPrivacySettings(.accessibility)
++            }
++        }
+     }
+ 
+     private func requestScreenRecording() {
+         coordinator.hasRequestedScreenRecording = true
+-        startPollingPermissionStatus()
++        startLivePermissionWatch()
+ 
+         Task { @MainActor [weak self] in
+             guard let self else { return }
+@@ -192,26 +224,18 @@ final class OnboardingPermissionController {
+         refreshPermissionStatuses()
+     }
+ 
+-    private func startPollingPermissionStatus() {
++    func startLivePermissionWatch() {
+         cancelRefreshTask()
+         coordinator.refreshTask = Task { @MainActor [weak self] in
+-            guard let self else { return }
+-
+-            for _ in 0..<60 {
+-                guard !Task.isCancelled else { return }
++            while !Task.isCancelled {
++                guard let self else { return }
+                 refreshPermissionStatuses()
+-
+-                if coordinator.requiredPermissionsGranted {
+-                    return
+-                }
+-
+-                try? await Task.sleep(nanoseconds: 1_000_000_000)
++                try? await Task.sleep(nanoseconds: 250_000_000)
+             }
+         }
+     }
+ 
+     private func openPrivacySettings(_ pane: PrivacySettingsPane) {
+-        guard let url = URL(string: pane.urlString) else { return }
+-        NSWorkspace.shared.open(url)
++        pane.open()
+     }
+ }
+diff --git a/VoiceInk/Views/Onboarding/OnboardingPermissionModels.swift b/VoiceInk/Views/Onboarding/OnboardingPermissionModels.swift
+index e216811..bbfc0b2 100644
+--- a/VoiceInk/Views/Onboarding/OnboardingPermissionModels.swift
++++ b/VoiceInk/Views/Onboarding/OnboardingPermissionModels.swift
+@@ -1,3 +1,5 @@
++import AppKit
++import ApplicationServices
+ import SwiftUI
+ 
+ enum OnboardingStage: String, CaseIterable {
+@@ -76,7 +78,7 @@ enum OnboardingStage: String, CaseIterable {
+     var subtitle: String {
+         switch self {
+         case .permissions:
+-            return String(localized: "Allow VoiceInk to work across all your apps.")
++            return String(localized: "Allow each item. VoiceInk opens the right macOS list and checks it for you.")
+         case .microphone:
+             return String(localized: "Pick the microphone VoiceInk should use for recordings.")
+         case .model:
+@@ -129,7 +131,9 @@ enum OnboardingPermissionKind: String, CaseIterable, Identifiable {
+         case .accessibility:
+             return OnboardingPermissionDescriptor(
+                 title: String(localized: "Accessibility"),
+-                subtitle: String(localized: "VoiceInk uses Accessibility to type transcriptions directly into any app.")
++                subtitle: String(
++                    localized: "VoiceInk opens the macOS app list. Turn on VoiceInk there so it can type into other apps."
++                )
+             )
+ 
+         case .screenRecording:
+@@ -197,13 +201,48 @@ enum PrivacySettingsPane {
+     case screenRecording
+ 
+     var urlString: String {
++        urlCandidates[0]
++    }
++
++    /// Current Privacy & Security pane first; legacy Security pane as fallback.
++    /// The old `com.apple.preference.security` link dumps users on Accessibility
++    /// *features* or the Privacy root, not the app-permission list.
++    var urlCandidates: [String] {
+         switch self {
+         case .microphone:
+-            return "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
++            return [
++                "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone",
++                "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
++            ]
+         case .accessibility:
+-            return "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
++            return [
++                "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility",
++                "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
++            ]
+         case .screenRecording:
+-            return "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
++            return [
++                "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ScreenCapture",
++                "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
++            ]
++        }
++    }
++
++    @discardableResult
++    func open() -> Bool {
++        let primary = urlCandidates[0]
++        let opener = Process()
++        opener.executableURL = URL(fileURLWithPath: "/usr/bin/open")
++        opener.arguments = [primary]
++        if (try? opener.run()) != nil {
++            return true
++        }
++
++        for candidate in urlCandidates {
++            guard let url = URL(string: candidate) else { continue }
++            if NSWorkspace.shared.open(url) {
++                return true
++            }
+         }
++        return false
+     }
+ }
+diff --git a/VoiceInk/Views/Onboarding/OnboardingPermissionsScreen.swift b/VoiceInk/Views/Onboarding/OnboardingPermissionsScreen.swift
+index 3ae0169..396009e 100644
+--- a/VoiceInk/Views/Onboarding/OnboardingPermissionsScreen.swift
++++ b/VoiceInk/Views/Onboarding/OnboardingPermissionsScreen.swift
+@@ -5,6 +5,7 @@ struct OnboardingPermissionsScreen: View {
+     let isComplete: Bool
+     let activePermission: OnboardingPermissionKind
+     let hasRequestedScreenRecording: Bool
++    let hasRequestedAccessibility: Bool
+     let stepNumber: (OnboardingPermissionKind) -> Int
+     let status: (OnboardingPermissionKind) -> OnboardingPermissionStatus
+     let isLocked: (OnboardingPermissionKind) -> Bool
+@@ -41,8 +42,13 @@ struct OnboardingPermissionsScreen: View {
+                     status: status(permission),
+                     isActive: !isComplete && activePermission == permission,
+                     isLocked: isLocked(permission),
+-                    showsRestartHint: permission == .screenRecording && hasRequestedScreenRecording
+-                        && !status(.screenRecording).isGranted,
++                    showsWaitingHint: (permission == .accessibility && hasRequestedAccessibility
++                            && !status(.accessibility).isGranted)
++                        || (permission == .screenRecording && hasRequestedScreenRecording
++                            && !status(.screenRecording).isGranted),
++                    restartHintText: permission == .accessibility
++                        ? "Turn on VoiceInk in the app list, then click Recheck. If it stays off, quit VoiceInk and open it again."
++                        : "Restart VoiceInk after enabling Screen Recording.",
+                     actionTitle: actionTitle(permission),
+                     onSelect: {
+                         guard !isLocked(permission) else { return }
+diff --git a/VoiceInk/Views/Onboarding/OnboardingView.swift b/VoiceInk/Views/Onboarding/OnboardingView.swift
+index e66d11a..cf9fcb6 100644
+--- a/VoiceInk/Views/Onboarding/OnboardingView.swift
++++ b/VoiceInk/Views/Onboarding/OnboardingView.swift
+@@ -29,6 +29,7 @@ struct OnboardingView: View {
+                         isComplete: coordinator.requiredPermissionsGranted,
+                         activePermission: coordinator.activePermission,
+                         hasRequestedScreenRecording: coordinator.hasRequestedScreenRecording,
++                        hasRequestedAccessibility: coordinator.hasRequestedAccessibility,
+                         stepNumber: { coordinator.permissions.stepNumber(for: $0) },
+                         status: { coordinator.permissions.status(for: $0) },
+                         isLocked: { coordinator.permissions.isLocked($0) },
+@@ -228,6 +229,7 @@ struct OnboardingView: View {
+             coordinator.flow.refreshTranscriptionSetupVerification()
+             coordinator.flow.ensureDefaultOnboardingProvider()
+             coordinator.permissions.refreshPermissionStatuses()
++            coordinator.permissions.startLivePermissionWatch()
+             coordinator.flow.refreshAPIVerification()
+             coordinator.flow.refreshExperienceModeState(enhancementService: enhancementService)
+             let refreshedTranscriptionSetupReady = coordinator.isTranscriptionSetupReady(
+diff --git a/VoiceInk/Views/Onboarding/PermissionStepRow.swift b/VoiceInk/Views/Onboarding/PermissionStepRow.swift
+index 5218d11..c300ed8 100644
+--- a/VoiceInk/Views/Onboarding/PermissionStepRow.swift
++++ b/VoiceInk/Views/Onboarding/PermissionStepRow.swift
+@@ -6,7 +6,8 @@ struct PermissionStepRow: View {
+     let status: OnboardingPermissionStatus
+     let isActive: Bool
+     let isLocked: Bool
+-    let showsRestartHint: Bool
++    let showsWaitingHint: Bool
++    let restartHintText: String
+     let actionTitle: String
+     let onSelect: () -> Void
+     let onAction: () -> Void
+@@ -37,8 +38,8 @@ struct PermissionStepRow: View {
+                 }
+             }
+ 
+-            if isActive && !isLocked && showsRestartHint {
+-                restartHint
++            if isActive && !isLocked && showsWaitingHint {
++                waitingHint
+                     .padding(.leading, 44)
+             }
+         }
+@@ -110,9 +111,11 @@ struct PermissionStepRow: View {
+         }
+     }
+ 
+-    private var restartHint: some View {
++    private var waitingHint: some View {
+         HStack(spacing: 8) {
+-            Text("Restart VoiceInk after enabling Screen Recording.")
++            ProgressView()
++                .controlSize(.small)
++            Text(restartHintText)
+                 .font(.system(size: 12))
+                 .foregroundColor(AppTheme.Text.muted)
+                 .fixedSize(horizontal: false, vertical: true)
+diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
+index 1ccd4bb..716be1a 100644
+--- a/VoiceInk/VoiceInk.swift
++++ b/VoiceInk/VoiceInk.swift
+@@ -414,7 +414,7 @@ struct VoiceInkApp: App {
+ 
+         if !AXIsProcessTrusted() {
+             NotificationManager.shared.showNotification(
+-                title: String(localized: "Accessibility permission is not provided"),
++                title: String(localized: "Turn on Accessibility for VoiceInk"),
+                 type: .warning,
+                 duration: 7.0,
+                 actionButton: (String(localized: "Open Settings"), Self.openAccessibilitySettings)
+@@ -433,9 +433,7 @@ struct VoiceInkApp: App {
+     }
+ 
+     private static func openAccessibilitySettings() {
+-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+-            NSWorkspace.shared.open(url)
+-        }
++        PrivacySettingsPane.accessibility.open()
+     }
+ }
+ 
