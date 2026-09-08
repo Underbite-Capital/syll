@@ -54,9 +54,9 @@ struct WordReplacementView: View {
 
     private var intro: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Terms and spoken aliases")
+            Text("Your words, spelled your way")
                 .font(.system(size: 15, weight: .semibold))
-            Text("Enter the spelling you want, then the ways VoiceInk commonly hears it. Aliases are optional.")
+            Text("Add the spelling you want Syll to use. Optionally include how it is commonly heard.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }
@@ -65,10 +65,10 @@ struct WordReplacementView: View {
     private var addForm: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                TextField("Preferred spelling — e.g. Underbite", text: $preferredText)
+                TextField("Preferred word", text: $preferredText)
                     .textFieldStyle(.roundedBorder)
 
-                TextField("Spoken aliases — e.g. under bite, underbyte", text: $aliasesText)
+                TextField("Heard as (optional)", text: $aliasesText)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(addTerm)
 
@@ -80,7 +80,7 @@ struct WordReplacementView: View {
                 .disabled(preferredText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
-            Text("Aliases can be separated with commas. The preferred spelling itself is always protected and boosted.")
+            Text("Use commas for more than one heard-as form. Changes apply to your next dictation.")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
         }
@@ -203,7 +203,7 @@ private struct PersonalDictionaryRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 } else {
-                    Text("Exact spelling only")
+                    Text("Preferred word")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }

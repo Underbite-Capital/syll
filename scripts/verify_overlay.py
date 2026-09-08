@@ -81,6 +81,7 @@ def main() -> int:
         "overlays/core/VoiceInk/Services/PersonalDictionaryService.swift",
         "migrateLegacyVocabulary",
         "refreshRecognitionCache",
+        "recognitionTerms",
         "saveTerm",
     )
     require_text(
@@ -99,6 +100,9 @@ def main() -> int:
         "maxAttempts",
         "validatedText",
         "refreshRecognitionCache",
+        "CloudTranscriptionService",
+        "AssemblyAIStreamingProvider",
+        "PersonalDictionaryService.recognitionTerms",
     )
 
     dictionary = require_text("dictionary.yaml", "version: 1", "canonical:")

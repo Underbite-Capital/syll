@@ -487,27 +487,59 @@ index 5218d11..c300ed8 100644
                  .font(.system(size: 12))
                  .foregroundColor(AppTheme.Text.muted)
                  .fixedSize(horizontal: false, vertical: true)
-diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
-index 1ccd4bb..716be1a 100644
---- a/VoiceInk/VoiceInk.swift
-+++ b/VoiceInk/VoiceInk.swift
-@@ -414,7 +414,7 @@ struct VoiceInkApp: App {
- 
-         if !AXIsProcessTrusted() {
-             NotificationManager.shared.showNotification(
--                title: String(localized: "Accessibility permission is not provided"),
-+                title: String(localized: "Turn on Accessibility for VoiceInk"),
-                 type: .warning,
-                 duration: 7.0,
-                 actionButton: (String(localized: "Open Settings"), Self.openAccessibilitySettings)
-@@ -433,9 +433,7 @@ struct VoiceInkApp: App {
+diff --git a/VoiceInk/Transcription/Cloud/CloudTranscriptionService.swift b/VoiceInk/Transcription/Cloud/CloudTranscriptionService.swift
+index a21d572..9b181aa 100644
+--- a/VoiceInk/Transcription/Cloud/CloudTranscriptionService.swift
++++ b/VoiceInk/Transcription/Cloud/CloudTranscriptionService.swift
+@@ -103,22 +103,7 @@ class CloudTranscriptionService: TranscriptionService {
      }
  
-     private static func openAccessibilitySettings() {
--        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
--            NSWorkspace.shared.open(url)
+     private func getCustomDictionaryTerms() -> [String] {
+-        let descriptor = FetchDescriptor<VocabularyWord>(sortBy: [SortDescriptor(\.word)])
+-        guard let vocabularyWords = try? modelContext.fetch(descriptor) else {
+-            return []
 -        }
-+        PrivacySettingsPane.accessibility.open()
+-        var seen = Set<String>()
+-        var unique: [String] = []
+-        for word in vocabularyWords {
+-            let trimmed = word.word.trimmingCharacters(in: .whitespacesAndNewlines)
+-            guard !trimmed.isEmpty else { continue }
+-            let key = trimmed.lowercased()
+-            if !seen.contains(key) {
+-                seen.insert(key)
+-                unique.append(trimmed)
+-            }
+-        }
+-        return unique
++        PersonalDictionaryService.recognitionTerms(from: modelContext)
      }
- }
  
+     private func mapLLMKitError(_ error: LLMKitError) -> CloudTranscriptionError {
+diff --git a/VoiceInk/Transcription/Streaming/AssemblyAIStreamingProvider.swift b/VoiceInk/Transcription/Streaming/AssemblyAIStreamingProvider.swift
+index 6b0a2ae..1194327 100644
+--- a/VoiceInk/Transcription/Streaming/AssemblyAIStreamingProvider.swift
++++ b/VoiceInk/Transcription/Streaming/AssemblyAIStreamingProvider.swift
+@@ -90,22 +90,7 @@ final class AssemblyAIStreamingProvider: StreamingTranscriptionProvider {
+     }
+ 
+     private func getCustomDictionaryTerms() -> [String] {
+-        let descriptor = FetchDescriptor<VocabularyWord>(sortBy: [SortDescriptor(\.word)])
+-        guard let vocabularyWords = try? modelContext.fetch(descriptor) else {
+-            return []
+-        }
+-        var seen = Set<String>()
+-        var unique: [String] = []
+-        for word in vocabularyWords {
+-            let trimmed = word.word.trimmingCharacters(in: .whitespacesAndNewlines)
+-            guard !trimmed.isEmpty else { continue }
+-            let key = trimmed.lowercased()
+-            if !seen.contains(key) {
+-                seen.insert(key)
+-                unique.append(trimmed)
+-            }
+-        }
+-        return unique
++        PersonalDictionaryService.recognitionTerms(from: modelContext)
+     }
+ 
+     private func mapError(_ error: Error) -> Error {

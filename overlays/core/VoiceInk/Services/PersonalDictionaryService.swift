@@ -290,6 +290,15 @@ enum PersonalDictionaryService {
         entries(from: context).map(\.preferredText)
     }
 
+    /// Returns the current preferred spellings and heard-as forms in the stable
+    /// order used for recognizer context. A bounded context keeps a large
+    /// personal dictionary from creating an unreasonably large provider request.
+    static func recognitionTerms(from context: ModelContext, limit: Int = 100) -> [String] {
+        guard limit > 0 else { return [] }
+        let terms = entries(from: context).flatMap(\.recognitionTerms)
+        return Array(uniqueCaseInsensitive(terms).prefix(limit))
+    }
+
     static func promptVocabulary(from context: ModelContext) -> String {
         entries(from: context).map { entry in
             guard !entry.aliases.isEmpty else { return entry.preferredText }
