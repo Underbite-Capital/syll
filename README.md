@@ -4,13 +4,13 @@ A small, menu-bar-first macOS dictation app built on VoiceInk's mature recorder 
 
 ## Current status
 
-The active implementation lives on `codex/voiceink-personal-dictionary`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present, with a workflow configured to verify clean application. A signed local CORE build and its focused tests passed on David's Mac; microphone, insertion, cleanup quality, and recognition quality still require David's direct judgement.
+The active implementation lives on `feature/syll-dictation-quality-control`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present, with a workflow configured to verify clean application. Apple Development-signed local build 225 is installed for experiential QA; dictation, insertion, cleanup quality, recognition quality, Personal Dictionary presentation, and restart/login behavior still require David's direct judgement.
 
 ## Scope
 
 ```text
 existing VoiceInk capture and transcription
-  -> optional FluidAudio vocabulary boosting
+  -> AssemblyAI recognition context when selected
   -> one-pass deterministic alias correction
   -> optional guarded cleanup
   -> existing VoiceInk delivery
@@ -23,7 +23,7 @@ Included:
 - exact dictionary spellings supplied to cleanup;
 - five-second, one-attempt cleanup for cleanup-named prompts;
 - deterministic validation and fallback to corrected transcription;
-- optional fail-open FluidAudio CTC vocabulary boosting;
+- AssemblyAI recognition context and FluidAudio remaining disabled in the core path;
 - focused tests, reproducible preparation, and cleanup documentation.
 
 Excluded:
@@ -38,7 +38,7 @@ Excluded:
 ## Prepare the app
 
 ```bash
-git checkout codex/voiceink-personal-dictionary
+git checkout feature/syll-dictation-quality-control
 python3 scripts/verify_overlay.py --core-only
 ./scripts/prepare-app.sh --core-only --reset
 ./scripts/build-local-app.sh --core-only
