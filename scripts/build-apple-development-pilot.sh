@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT="$ROOT_DIR/app/VoiceInk.xcodeproj"
+DERIVED_DATA="$ROOT_DIR/build/syll-qa-derived-data"
 SOURCE_APP="$ROOT_DIR/build/syll-qa-derived-data/Build/Products/Debug/VoiceInk.app"
 SIGNING_IDENTITY="69C2BB0FE6E75589F044A08105D99DBEFC6DCFC5"
 EXPECTED_TEAM="A635S52367"
@@ -36,8 +38,8 @@ if [[ "$CERT_TEAM" != "$EXPECTED_TEAM" ]]; then
   exit 1
 fi
 
-if [[ ! -d "$SOURCE_APP" || ! -f "$ENTITLEMENTS" ]]; then
-  echo "Prepared core candidate is missing; build it before staging Syll QA." >&2
+if [[ ! -d "$PROJECT" || ! -f "$ENTITLEMENTS" ]]; then
+  echo "Prepared core candidate is missing; prepare app/ before building Syll QA." >&2
   exit 1
 fi
 
@@ -47,6 +49,27 @@ if [[ -e "$APP_BUNDLE" ]]; then
 fi
 
 mkdir -p "$OUTPUT_DIR"
+
+# This Apple Development path is a local QA build. Keep CloudKit disabled unless
+# and until a separately provisioned release configuration supplies its intended
+# production CloudKit authority.
+xcodebuild \
+  -project "$PROJECT" \
+  -scheme VoiceInk \
+  -configuration Debug \
+  -destination "platform=macOS,arch=arm64" \
+  -derivedDataPath "$DERIVED_DATA" \
+  -skipPackagePluginValidation \
+  -skipMacroValidation \
+  CODE_SIGNING_ALLOWED=NO \
+  'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) DEBUG LOCAL_BUILD' \
+  build
+
+if [[ ! -d "$SOURCE_APP" ]]; then
+  echo "QA build reported success but did not produce $SOURCE_APP" >&2
+  exit 1
+fi
+
 ditto "$SOURCE_APP" "$APP_BUNDLE"
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $SYLL_BUNDLE_ID" "$APP_BUNDLE/Contents/Info.plist"

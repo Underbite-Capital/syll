@@ -104,6 +104,12 @@ def main() -> int:
         "AssemblyAIStreamingProvider",
         "PersonalDictionaryService.recognitionTerms",
     )
+    require_text(
+        "scripts/build-apple-development-pilot.sh",
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) DEBUG LOCAL_BUILD",
+        "CODE_SIGNING_ALLOWED=NO",
+        "--options runtime",
+    )
 
     dictionary = require_text("dictionary.yaml", "version: 1", "canonical:")
     term_count = len(re.findall(r"^\s*- canonical:", dictionary, flags=re.MULTILINE))
