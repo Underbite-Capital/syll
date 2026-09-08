@@ -10,9 +10,18 @@ class WordReplacementService {
         let isEnabled = UserDefaults.standard.object(
             forKey: PersonalDictionaryService.isCorrectionsEnabledKey
         ) as? Bool ?? true
-        guard isEnabled else { return text }
 
-        let entries = PersonalDictionaryService.entries(from: context)
-        return PersonalDictionaryCorrector.correct(text, entries: entries)
+        let correctedText: String
+        if isEnabled {
+            let entries = PersonalDictionaryService.entries(from: context)
+            correctedText = PersonalDictionaryCorrector.correct(text, entries: entries)
+        } else {
+            correctedText = text
+        }
+
+        // Syll's normal cleanup is local and deterministic. Optional VoiceInk AI
+        // enhancement remains a separate downstream feature and is not required
+        // for cleanup quality.
+        return DeterministicDictationCleaner.clean(correctedText)
     }
 }
