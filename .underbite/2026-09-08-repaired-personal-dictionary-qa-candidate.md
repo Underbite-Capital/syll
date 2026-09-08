@@ -121,3 +121,38 @@ This proves plumbing, not an experiential recognition-quality improvement.
 Do not replace `/Applications/Syll.app` yet. The next bounded task is to change the remaining user-visible VoiceInk identity strings to Syll, rebuild through the same canonical `LOCAL_BUILD` QA path once the Apple Development identity is valid again, obtain fresh deep/strict verification, and repeat isolated visible dictionary CRUD verification.
 
 Only after those checks pass should a supervisor consider a recoverable migration: quit the candidate and working app; preserve an exact backup of build 215 and its data; stage and verify the signed candidate outside `/Applications`; replace the app bundle in place without changing bundle ID, Team ID, designated-requirement shape, entitlements, or TCC; launch and verify effective Accessibility and real dictation. If any check fails, quit the candidate and atomically restore the preserved build-215 bundle. Do not reset TCC during migration or rollback.
+
+## Visible Syll identity follow-up
+
+Source commit `ac24a9554fa4a58c014a96e885e2b0d83bf0ddb3` (`Complete visible Syll identity in QA source`) adds a reproducible `patches/syll-branding.patch`, applies it from `scripts/prepare-app.sh`, and makes `scripts/verify_overlay.py` enforce the critical Syll labels. The core onboarding patch was also corrected so its Accessibility and microphone instructions say Syll.
+
+The bounded branding repair changes both status-menu variants to `Quit Syll`; the SwiftUI app and AppKit window titles to Syll; recorder App Intent labels; ordinary microphone, clipboard, and language-restart copy; and the dictionary example. It does not change compatibility-sensitive bundle identifiers, Application Support paths, defaults/autosave keys, Swift target/module names, or upstream provider/service identifiers. Those internal `VoiceInk` identifiers remain necessary to preserve bundle, data, and Accessibility continuity and are not the normal Personal Dictionary/recording branding path.
+
+Fresh current-source evidence:
+
+- `python3 scripts/verify_overlay.py --core-only`: PASS.
+- `./scripts/prepare-app.sh --core-only --reset`: PASS at upstream `3c211dab63454f18cf3f8b58750ec6bf3f5b4d17`.
+- `git -C app diff --check`: PASS.
+- Focused result bundle: `build/personal-dictionary-branding-v2.xcresult`.
+- Focused tests: 12 executed, 12 passed, 0 failed, 0 skipped.
+
+An explicitly non-installable diagnostic was built at `/Users/david/work/projects/syll/build/syll-branding-diagnostic-219/Syll.app`, build 219. It retained the compatibility bundle identifier, used `LOCAL_BUILD`, and was run with `CFFIXED_USER_HOME=/private/tmp/syll-branding-219-home`. It launched without a standalone window. Read-only Accessibility inspection established:
+
+- macOS application menu: `About Syll`, `Hide Syll`, `Quit Syll`;
+- status menu: `Quit Syll`.
+
+Launching that diagnostic simultaneously with the historical working app produced a confusing second visible app identity because both processes shared the compatibility bundle identifier and macOS reused/cached VoiceInk/Syll identity presentation. David required execution to stop. The diagnostic process was terminated immediately; the generated `default.profraw` was removed; `/Applications/Syll.app` remained the only working real app and was never modified. This simultaneous-launch approach must not be repeated on David's active desktop.
+
+Personal Dictionary visible UI remains **FAIL/not completed**: source and 12/12 tests contain the intended controls, but the popup was not opened before David stopped the duplicate-app verification. Do not promote source inspection to visual PASS.
+
+The signing diagnosis remains read-only and blocking:
+
+- `security find-identity -v -p codesigning`: `0 valid identities found`;
+- no certificate matching `Apple Development: realjewlion@gmail.com (687D42QJZ6)` is present in the login keychain;
+- therefore no matching certificate/private-key pair can form a valid signing identity;
+- no provisioning profiles are installed;
+- Xcode has no valid development signing identity to resolve.
+
+Exact human-controlled prerequisite: in Xcode Settings → Accounts, select the relevant Apple account and use Manage Certificates to create or download a valid Apple Development certificate so that its matching private key is installed in the login keychain. Once that single prerequisite is satisfied, the canonical `LOCAL_BUILD` Apple Development packaging path is ready to produce a new isolated signed candidate. Installation remains unauthorized, and the Feature remains unaccepted.
+
+Final worktree state before this evidence update: generated ` m app` only. Protected `/Applications/Syll.app` remained build 215 and untouched; TCC and Accessibility were not changed.
