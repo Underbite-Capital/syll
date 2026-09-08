@@ -13,7 +13,7 @@
     "project_manager": "David"
   },
   "implementation": {
-    "branch": "codex/voiceink-personal-dictionary",
+    "branch": "feature/syll-dictation-quality-control",
     "voiceink_upstream_commit": "3c211dab63454f18cf3f8b58750ec6bf3f5b4d17",
     "core_fallback": "./scripts/prepare-app.sh --core-only --reset",
     "human_acceptance_required": true

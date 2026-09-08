@@ -1,6 +1,6 @@
-# VoiceInk Personal Dictionary
+# Syll
 
-A small downstream VoiceInk build for David: better terminology, safer dictation cleanup, and optional local word boosting—without replacing VoiceInk's recorder, shortcuts, model management, or cursor delivery.
+A small, menu-bar-first macOS dictation app built on VoiceInk's mature recorder and transcription machinery.
 
 ## Current status
 

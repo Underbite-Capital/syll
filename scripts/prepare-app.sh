@@ -103,6 +103,7 @@ git -C "$APP_DIR" checkout --detach "$UPSTREAM_COMMIT"
 
 git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/core.patch"
 git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-branding.patch"
+git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-recovery.patch"
 
 if [[ "$MODE" == "full" ]]; then
   if [[ ! -d "$ROOT_DIR/overlays/boosting" || ! -f "$ROOT_DIR/patches/boosting.patch" ]]; then
@@ -116,6 +117,7 @@ fi
 cp -R "$ROOT_DIR/overlays/core/." "$APP_DIR/"
 git -C "$APP_DIR" apply "$ROOT_DIR/patches/core.patch"
 git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-branding.patch"
+git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-recovery.patch"
 
 if [[ "$MODE" == "full" ]]; then
   cp -R "$ROOT_DIR/overlays/boosting/." "$APP_DIR/"

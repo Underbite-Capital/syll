@@ -1,0 +1,117 @@
+diff --git a/VoiceInk/Info.plist b/VoiceInk/Info.plist
+index 4d98a62..448c9e8 100644
+--- a/VoiceInk/Info.plist
++++ b/VoiceInk/Info.plist
+@@ -9,13 +9,13 @@
+ 	<key>SUPublicEDKey</key>
+ 	<string>gnXep9+mzNXFSbX0jU7CpLtubcQ5WVfVGe0BxsSdS40=</string>
+ 	<key>LSUIElement</key>
+-	<false/>
++	<true/>
+ 	<key>SUEnableAutomaticChecks</key>
+ 	<false/>
+ 	<key>SUScheduledCheckInterval</key>
+ 	<integer>14400</integer>
+ 	<key>NSMicrophoneUsageDescription</key>
+-	<string>VoiceInk needs access to your microphone to record audio for transcription.</string>
++	<string>Syll needs access to your microphone to record audio for transcription.</string>
+ 	<key>NSAppleEventsUsageDescription</key>
+ 	<string>VoiceInk needs to interact with your browser to detect the current website for applying website-specific configurations.</string>
+ 	<key>NSScreenCaptureUsageDescription</key>
+diff --git a/VoiceInk/Shortcuts/ShortcutMonitor.swift b/VoiceInk/Shortcuts/ShortcutMonitor.swift
+index 8647060..6365b9f 100644
+--- a/VoiceInk/Shortcuts/ShortcutMonitor.swift
++++ b/VoiceInk/Shortcuts/ShortcutMonitor.swift
+@@ -92,15 +92,15 @@ final class ShortcutMonitor {
+                 return Unmanaged.passUnretained(event)
+             }
+ 
+-            let shouldSuppress = monitor.handleCGEvent(type: type, event: event)
+-            return shouldSuppress ? nil : Unmanaged.passUnretained(event)
++            _ = monitor.handleCGEvent(type: type, event: event)
++            return Unmanaged.passUnretained(event)
+         }
+ 
+         guard
+             let eventTap = CGEvent.tapCreate(
+                 tap: .cgSessionEventTap,
+                 place: .headInsertEventTap,
+-                options: .defaultTap,
++                options: .listenOnly,
+                 eventsOfInterest: Self.eventMask,
+                 callback: callback,
+                 userInfo: Unmanaged.passUnretained(self).toOpaque()
+diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
+index 5769b2d..f238d98 100644
+--- a/VoiceInk/VoiceInk.swift
++++ b/VoiceInk/VoiceInk.swift
+@@ -42,6 +42,7 @@ struct VoiceInkApp: App {
+         URLCache.shared = URLCache(memoryCapacity: 0, diskCapacity: 0)
+ 
+         AppDefaults.registerDefaults()
++        SyllIdentityMigration.runIfNeeded()
+         AppLanguagePreference.applyStored()
+         AppAppearancePreference.applyStored()
+         OnboardingV2Migration.prepareIfNeeded()
+@@ -282,7 +283,7 @@ struct VoiceInkApp: App {
+         Window("Syll", id: AppWindowID.main) {
+             Group {
+                 if hasCompletedOnboardingV2 {
+-                    ContentView()
++                    SyllControlView()
+                         .environmentObject(engine)
+                         .environmentObject(whisperModelManager)
+                         .environmentObject(fluidAudioModelManager)
+@@ -300,10 +301,6 @@ struct VoiceInkApp: App {
+                                 AnnouncementsService.shared.start()
+                             }
+ 
+-                            showLaunchRemindersIfNeeded()
+-
+-                            GitHubStarPromptCoordinator.shared.scheduleIfNeeded(modelContainer: container)
+-
+                             // Run due audio-only cleanup and schedule future checks when transcript cleanup is not managing retention.
+                             if !UserDefaults.standard.bool(forKey: CleanupSettingsKeys.isTranscriptionCleanupEnabled)
+                                 && UserDefaults.standard.bool(forKey: CleanupSettingsKeys.isAudioCleanupEnabled)
+@@ -340,7 +337,7 @@ struct VoiceInkApp: App {
+                             audioCleanupManager.stopAutomaticCleanup()
+                         }
+                 } else {
+-                    OnboardingView(hasCompletedOnboardingV2: $hasCompletedOnboardingV2)
++                    SyllControlView()
+                         .environmentObject(fluidAudioModelManager)
+                         .environmentObject(transcriptionModelManager)
+                         .environmentObject(aiService)
+@@ -362,7 +359,7 @@ struct VoiceInkApp: App {
+             }
+         }
+         .windowStyle(.hiddenTitleBar)
+-        .defaultSize(width: AppWindowLayout.width, height: AppWindowLayout.minimumHeight)
++        .defaultSize(width: 720, height: 560)
+         .windowResizability(.contentSize)
+         .commands {
+             CommandGroup(replacing: .newItem) {}
+@@ -373,7 +370,7 @@ struct VoiceInkApp: App {
+         }
+ 
+         MenuBarExtra(isInserted: $showMenuBarIcon) {
+-            MenuBarView()
++            SyllMenuBarView()
+                 .environmentObject(engine)
+                 .environmentObject(whisperModelManager)
+                 .environmentObject(fluidAudioModelManager)
+diff --git a/VoiceInk/WindowManager.swift b/VoiceInk/WindowManager.swift
+index d97f793..54f47aa 100644
+--- a/VoiceInk/WindowManager.swift
++++ b/VoiceInk/WindowManager.swift
+@@ -2,8 +2,8 @@ import AppKit
+ import SwiftUI
+ 
+ enum AppWindowLayout {
+-    static let width: CGFloat = 950
+-    static let minimumHeight: CGFloat = 750
++    static let width: CGFloat = 720
++    static let minimumHeight: CGFloat = 520
+ }
+ 
+ enum AppWindowID {
