@@ -91,7 +91,7 @@ Launch overrides were process-local and nonpersistent: `-hasCompletedOnboardingV
 
 Runtime verification then hit an explicit stop condition: the candidate's own menu contained `Quit VoiceInk`. The source remains hard-coded at `app/VoiceInk/Views/MenuBarView.swift` (two menu variants), and the main window title remains `VoiceInk` in `app/VoiceInk/VoiceInk.swift`. Screenshot: `build/syll-qa/repaired-218-menu.png`. The isolated process was terminated; the historical working process remained the only real `/Applications/Syll.app` process.
 
-Accordingly, visible Personal Dictionary UI verification is **FAIL/blocked**, not PASS. Source inspection confirms the new dictionary surface exists (`Preferred word`, `Heard as (optional)`, `Add`, searchable entries, edit and delete controls, and no primary refresh/path/revision/bias inspector), but it was not opened or mutated after the material Syll/VoiceInk identity mismatch triggered the mandated stop.
+Accordingly, visible Personal Dictionary UI verification is **NOT TESTED**, not PASS or FAIL. Source inspection confirms the new dictionary surface exists (`Preferred word`, `Heard as (optional)`, `Add`, searchable entries, edit and delete controls, and no primary refresh/path/revision/bias inspector), but it was not opened or mutated after the material Syll/VoiceInk identity mismatch triggered the mandated stop.
 
 ## AssemblyAI vocabulary path
 
@@ -111,7 +111,7 @@ This proves plumbing, not an experiential recognition-quality improvement.
 
 - Working tree after cleanup: generated ` m app` only.
 - Candidate startup: PASS.
-- Personal Dictionary visible UI: FAIL/blocked by the material `Quit VoiceInk` identity defect before the popup was exercised.
+- Personal Dictionary visible UI: **NOT TESTED**; the popup was not exercised before the material identity defect triggered the stop.
 - AssemblyAI context path: PASS by current source/dependency inspection.
 - Signing: presently blocked because the keychain reports no valid signing identities and fresh deep/strict verification returns `CSSMERR_TP_NOT_TRUSTED`.
 - Human dictation and vocabulary QA remain outstanding. The Feature is not accepted.
@@ -143,7 +143,7 @@ An explicitly non-installable diagnostic was built at `/Users/david/work/project
 
 Launching that diagnostic simultaneously with the historical working app produced a confusing second visible app identity because both processes shared the compatibility bundle identifier and macOS reused/cached VoiceInk/Syll identity presentation. David required execution to stop. The diagnostic process was terminated immediately; the generated `default.profraw` was removed; `/Applications/Syll.app` remained the only working real app and was never modified. This simultaneous-launch approach must not be repeated on David's active desktop.
 
-Personal Dictionary visible UI remains **FAIL/not completed**: source and 12/12 tests contain the intended controls, but the popup was not opened before David stopped the duplicate-app verification. Do not promote source inspection to visual PASS.
+Personal Dictionary visible UI remains **NOT TESTED**: source and 12/12 tests contain the intended controls, but the popup was not opened before David stopped the duplicate-app verification. Do not promote source inspection to visual PASS.
 
 The signing diagnosis remains read-only and blocking:
 
