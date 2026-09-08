@@ -1,12 +1,12 @@
 {
   "schema": "underbite-project/v1",
   "project_key": "PROJECT-DAVID-VOICE-LOCAL-DICTATION",
-  "project_name": "VoiceInk Personal Dictionary",
+  "project_name": "Syll",
   "project_slug": "david-voice-local-dictation",
   "phase": "implementation-candidate",
   "created_on": "2026-08-20",
-  "updated_on": "2026-08-26",
-  "outcome": "Make David's current VoiceInk setup materially better through one personal dictionary, safer cleanup, and optional fail-open local vocabulary boosting.",
+  "updated_on": "2026-09-08",
+  "outcome": "Keep Syll small and simple while materially improving terminology control, deterministic non-LLM cleanup, recognition quality where supported, and the compact recording experience.",
   "owners": {
     "commercial": "David",
     "technical": "David",
