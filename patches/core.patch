@@ -140,7 +140,7 @@ index 8786e7a..d663571 100644
                      .lineLimit(1)
  
 -                Text("Required for VoiceInk shortcuts and app-wide controls to work properly.")
-+                Text("Turn on VoiceInk in Privacy & Security → Accessibility. This button opens that list.")
++                Text("Turn on Syll in Privacy & Security → Accessibility. This button opens that list.")
                      .font(.system(size: 11))
                      .foregroundStyle(.secondary)
                      .lineLimit(2)
@@ -333,9 +333,10 @@ index e216811..bbfc0b2 100644
          switch self {
          case .permissions:
 -            return String(localized: "Allow VoiceInk to work across all your apps.")
-+            return String(localized: "Allow each item. VoiceInk opens the right macOS list and checks it for you.")
++            return String(localized: "Allow each item. Syll opens the right macOS list and checks it for you.")
          case .microphone:
-             return String(localized: "Pick the microphone VoiceInk should use for recordings.")
+-            return String(localized: "Pick the microphone VoiceInk should use for recordings.")
++            return String(localized: "Pick the microphone Syll should use for recordings.")
          case .model:
 @@ -129,7 +131,9 @@ enum OnboardingPermissionKind: String, CaseIterable, Identifiable {
          case .accessibility:
@@ -343,7 +344,7 @@ index e216811..bbfc0b2 100644
                  title: String(localized: "Accessibility"),
 -                subtitle: String(localized: "VoiceInk uses Accessibility to type transcriptions directly into any app.")
 +                subtitle: String(
-+                    localized: "VoiceInk opens the macOS app list. Turn on VoiceInk there so it can type into other apps."
++                    localized: "Syll opens the macOS app list. Turn on Syll there so it can type into other apps."
 +                )
              )
  
@@ -423,8 +424,8 @@ index 3ae0169..396009e 100644
 +                        || (permission == .screenRecording && hasRequestedScreenRecording
 +                            && !status(.screenRecording).isGranted),
 +                    restartHintText: permission == .accessibility
-+                        ? "Turn on VoiceInk in the app list, then click Recheck. If it stays off, quit VoiceInk and open it again."
-+                        : "Restart VoiceInk after enabling Screen Recording.",
++                        ? "Turn on Syll in the app list, then click Recheck. If it stays off, quit Syll and open it again."
++                        : "Restart Syll after enabling Screen Recording.",
                      actionTitle: actionTitle(permission),
                      onSelect: {
                          guard !isLocked(permission) else { return }

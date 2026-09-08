@@ -58,6 +58,7 @@ def main() -> int:
     args = parser.parse_args()
 
     validate_patch_syntax("patches/core.patch")
+    validate_patch_syntax("patches/syll-branding.patch")
     if not args.core_only:
         validate_patch_syntax("patches/boosting.patch")
 
@@ -66,6 +67,7 @@ def main() -> int:
         UPSTREAM_COMMIT,
         "--core-only",
         "git -C \"$APP_DIR\" apply --check",
+        "patches/syll-branding.patch",
     )
     if "MODE=\"full\"" not in prepare:
         raise AssertionError("full overlay must remain the explicit default")
@@ -109,6 +111,13 @@ def main() -> int:
         "SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) DEBUG LOCAL_BUILD",
         "CODE_SIGNING_ALLOWED=NO",
         "--options runtime",
+    )
+    require_text(
+        "patches/syll-branding.patch",
+        'Button("Quit Syll")',
+        'Window("Syll"',
+        'window.title = "Syll"',
+        "Restart Syll",
     )
 
     dictionary = require_text("dictionary.yaml", "version: 1", "canonical:")

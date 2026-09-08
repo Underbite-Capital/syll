@@ -1,0 +1,192 @@
+diff --git a/VoiceInk/AppIntents/DismissMiniRecorderIntent.swift b/VoiceInk/AppIntents/DismissMiniRecorderIntent.swift
+index 51b0277..18b47c0 100644
+--- a/VoiceInk/AppIntents/DismissMiniRecorderIntent.swift
++++ b/VoiceInk/AppIntents/DismissMiniRecorderIntent.swift
+@@ -3,8 +3,8 @@ import AppKit
+ import Foundation
+ 
+ struct DismissMiniRecorderIntent: AppIntent {
+-    static var title: LocalizedStringResource = "Dismiss VoiceInk Recorder"
+-    static var description = IntentDescription("Dismiss the VoiceInk recorder and cancel any active recording.")
++    static var title: LocalizedStringResource = "Dismiss Syll Recorder"
++    static var description = IntentDescription("Dismiss the Syll recorder and cancel any active recording.")
+ 
+     static var openAppWhenRun: Bool = false
+ 
+@@ -12,7 +12,7 @@ struct DismissMiniRecorderIntent: AppIntent {
+     func perform() async throws -> some IntentResult & ProvidesDialog {
+         NotificationCenter.default.post(name: .dismissRecorderPanel, object: nil)
+ 
+-        let dialog: IntentDialog = "VoiceInk recorder dismissed"
++        let dialog: IntentDialog = "Syll recorder dismissed"
+         return .result(dialog: dialog)
+     }
+ }
+diff --git a/VoiceInk/AppIntents/ToggleMiniRecorderIntent.swift b/VoiceInk/AppIntents/ToggleMiniRecorderIntent.swift
+index 81d553a..658785a 100644
+--- a/VoiceInk/AppIntents/ToggleMiniRecorderIntent.swift
++++ b/VoiceInk/AppIntents/ToggleMiniRecorderIntent.swift
+@@ -3,8 +3,8 @@ import AppKit
+ import Foundation
+ 
+ struct ToggleMiniRecorderIntent: AppIntent {
+-    static var title: LocalizedStringResource = "Toggle VoiceInk Recorder"
+-    static var description = IntentDescription("Start or stop the VoiceInk recorder for voice transcription.")
++    static var title: LocalizedStringResource = "Toggle Syll Recorder"
++    static var description = IntentDescription("Start or stop the Syll recorder for voice transcription.")
+ 
+     static var openAppWhenRun: Bool = false
+ 
+@@ -12,7 +12,7 @@ struct ToggleMiniRecorderIntent: AppIntent {
+     func perform() async throws -> some IntentResult & ProvidesDialog {
+         NotificationCenter.default.post(name: .toggleRecorderPanel, object: nil)
+ 
+-        let dialog: IntentDialog = "VoiceInk recorder toggled"
++        let dialog: IntentDialog = "Syll recorder toggled"
+         return .result(dialog: dialog)
+     }
+ }
+@@ -24,9 +24,9 @@ enum IntentError: Error, LocalizedError {
+     var errorDescription: String? {
+         switch self {
+         case .appNotAvailable:
+-            return String(localized: "VoiceInk app is not available")
++            return String(localized: "Syll app is not available")
+         case .serviceNotAvailable:
+-            return String(localized: "VoiceInk recording service is not available")
++            return String(localized: "Syll recording service is not available")
+         }
+     }
+ }
+diff --git a/VoiceInk/Recorder+RecordingDeviceSetup.swift b/VoiceInk/Recorder+RecordingDeviceSetup.swift
+index 8cb8634..09848ba 100644
+--- a/VoiceInk/Recorder+RecordingDeviceSetup.swift
++++ b/VoiceInk/Recorder+RecordingDeviceSetup.swift
+@@ -95,7 +95,7 @@ extension Recorder {
+             deviceManager.recordingDeviceChangeFinished()
+             logger.error("Failed to switch recording devices: \(error, privacy: .public)")
+             NotificationManager.shared.showNotification(
+-                title: String(localized: "VoiceInk could not switch to another microphone."),
++                title: String(localized: "Syll could not switch to another microphone."),
+                 type: .error,
+                 duration: 7.0
+             )
+diff --git a/VoiceInk/Views/Dictionary/DictionaryQuickAddPanel.swift b/VoiceInk/Views/Dictionary/DictionaryQuickAddPanel.swift
+index d749d34..96c2daa 100644
+--- a/VoiceInk/Views/Dictionary/DictionaryQuickAddPanel.swift
++++ b/VoiceInk/Views/Dictionary/DictionaryQuickAddPanel.swift
+@@ -252,7 +252,7 @@ struct DictionaryQuickAddView: View {
+             Image(systemName: "character.book.closed.fill")
+                 .font(.system(size: 14))
+                 .foregroundStyle(.secondary)
+-            TextField("", text: $wordInput, prompt: Text("e.g. Prakash, VoiceInk").foregroundColor(.secondary))
++            TextField("", text: $wordInput, prompt: Text("e.g. Shukuru, Supabase").foregroundColor(.secondary))
+                 .textFieldStyle(.roundedBorder)
+                 .font(.system(size: 14))
+                 .focused($focusedField, equals: .word)
+diff --git a/VoiceInk/Views/MenuBarView.swift b/VoiceInk/Views/MenuBarView.swift
+index 4ec3f43..015a8e4 100644
+--- a/VoiceInk/Views/MenuBarView.swift
++++ b/VoiceInk/Views/MenuBarView.swift
+@@ -35,7 +35,7 @@ struct MenuBarView: View {
+ 
+             Divider()
+ 
+-            Button("Quit VoiceInk") {
++            Button("Quit Syll") {
+                 NSApplication.shared.terminate(nil)
+             }
+         }
+@@ -160,7 +160,7 @@ struct MenuBarView: View {
+             }
+             .disabled(!updaterViewModel.canCheckForUpdates)
+ 
+-            Button("Quit VoiceInk") {
++            Button("Quit Syll") {
+                 NSApplication.shared.terminate(nil)
+             }
+         }
+diff --git a/VoiceInk/Views/Settings/AudioSetupView.swift b/VoiceInk/Views/Settings/AudioSetupView.swift
+index 0a4f4cc..19c3065 100644
+--- a/VoiceInk/Views/Settings/AudioSetupView.swift
++++ b/VoiceInk/Views/Settings/AudioSetupView.swift
+@@ -89,7 +89,7 @@ struct AudioSetupView: View {
+     @ViewBuilder
+     private var priorityOrderRows: some View {
+         if prioritizedDevicesInDisplayOrder.isEmpty {
+-            Text("Add microphones in the order VoiceInk should try them.")
++            Text("Add microphones in the order Syll should try them.")
+                 .foregroundStyle(.secondary)
+         } else {
+             ForEach(prioritizedDevicesInDisplayOrder) { device in
+diff --git a/VoiceInk/Views/Settings/SettingsView.swift b/VoiceInk/Views/Settings/SettingsView.swift
+index 2392d11..86b3f85 100644
+--- a/VoiceInk/Views/Settings/SettingsView.swift
++++ b/VoiceInk/Views/Settings/SettingsView.swift
+@@ -155,7 +155,7 @@ struct SettingsView: View {
+                     isEnabled: $restoreClipboardAfterPaste,
+                     label: "Keep Clipboard Content",
+                     infoMessage:
+-                        "VoiceInk temporarily uses the clipboard to paste transcription. When enabled, it restores your previous clipboard content after the selected delay. When disabled, the pasted transcription stays on your clipboard."
++                        "Syll temporarily uses the clipboard to paste transcription. When enabled, it restores your previous clipboard content after the selected delay. When disabled, the pasted transcription stays on your clipboard."
+                 ) {
+                     Picker("Restore Delay", selection: $clipboardRestoreDelay) {
+                         Text("250ms").tag(0.25)
+@@ -326,10 +326,10 @@ struct SettingsView: View {
+         } message: {
+             Text("You'll see the introduction screens again the next time you launch the app.")
+         }
+-        .alert("Restart VoiceInk to Apply Language", isPresented: $showLanguageRestartAlert) {
++        .alert("Restart Syll to Apply Language", isPresented: $showLanguageRestartAlert) {
+             Button("OK", role: .cancel) {}
+         } message: {
+-            Text("Your language change will take full effect after you quit and reopen VoiceInk.")
++            Text("Your language change will take full effect after you quit and reopen Syll.")
+         }
+     }
+ 
+diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
+index 1ccd4bb..8c9400c 100644
+--- a/VoiceInk/VoiceInk.swift
++++ b/VoiceInk/VoiceInk.swift
+@@ -70,7 +70,7 @@ struct VoiceInkApp: App {
+                     alert.messageText = String(localized: "Storage Warning")
+                     alert.informativeText = String(
+                         localized:
+-                            "VoiceInk couldn't access its storage location. Your transcriptions will not be saved between sessions."
++                            "Syll couldn't access its storage location. Your transcriptions will not be saved between sessions."
+                     )
+                     alert.alertStyle = .warning
+                     alert.addButton(withTitle: String(localized: "OK"))
+@@ -83,7 +83,7 @@ struct VoiceInkApp: App {
+                     "❌ All ModelContainer init attempts failed.\nPersistent:\n\(persistentDetail, privacy: .public)\nIn-memory:\n\(memoryDetail, privacy: .public)"
+                 )
+                 fatalError(
+-                    "VoiceInk failed to initialize storage.\nPersistent:\n\(persistentDetail)\nIn-memory:\n\(memoryDetail)"
++                    "Syll failed to initialize storage.\nPersistent:\n\(persistentDetail)\nIn-memory:\n\(memoryDetail)"
+                 )
+             }
+         }
+@@ -279,7 +279,7 @@ struct VoiceInkApp: App {
+     }
+ 
+     var body: some Scene {
+-        Window("VoiceInk", id: AppWindowID.main) {
++        Window("Syll", id: AppWindowID.main) {
+             Group {
+                 if hasCompletedOnboardingV2 {
+                     ContentView()
+diff --git a/VoiceInk/WindowManager.swift b/VoiceInk/WindowManager.swift
+index 4d4634f..d97f793 100644
+--- a/VoiceInk/WindowManager.swift
++++ b/VoiceInk/WindowManager.swift
+@@ -83,7 +83,7 @@ class WindowManager: NSObject {
+         window.titleVisibility = .hidden
+         window.backgroundColor = .clear
+         window.isReleasedWhenClosed = false
+-        window.title = "VoiceInk"
++        window.title = "Syll"
+         window.collectionBehavior = [.fullScreenPrimary]
+         window.level = .normal
+         window.isOpaque = false
+
