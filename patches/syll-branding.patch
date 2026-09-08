@@ -190,3 +190,59 @@ index 4d4634f..d97f793 100644
          window.level = .normal
          window.isOpaque = false
 
+diff --git a/VoiceInk/AppDefaults.swift b/VoiceInk/AppDefaults.swift
+index 07dad5c..fad98c0 100644
+--- a/VoiceInk/AppDefaults.swift
++++ b/VoiceInk/AppDefaults.swift
+@@ -49,7 +49,9 @@ enum AppDefaults {
+             CleanupSettingsKeys.audioRetentionPeriod: 7,
+ 
+             // UI & Behavior
+-            "IsMenuBarOnly": false,
++            // Syll is menu-bar-first. Setup remains available from its menu,
++            // rather than appearing as a standalone window at launch.
++            "IsMenuBarOnly": true,
+             AppAppearancePreference.userDefaultsKey: AppAppearancePreference.system.rawValue,
+             AppLanguagePreference.userDefaultsKey: AppLanguagePreference.systemValue,
+             // Shortcuts
+
+diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
+index 1ccd4bb..5769b2d 100644
+--- a/VoiceInk/VoiceInk.swift
++++ b/VoiceInk/VoiceInk.swift
+@@ -386,14 +386,7 @@ struct VoiceInkApp: App {
+                 .environmentObject(aiService)
+                 .environmentObject(enhancementService)
+         } label: {
+-            let image: NSImage = {
+-                let ratio = $0.size.height / $0.size.width
+-                $0.size.height = 22
+-                $0.size.width = 22 / ratio
+-                return $0
+-            }(NSImage(named: "menuBarIcon")!)
+-
+-            Image(nsImage: image)
++            SyllMenuBarMark()
+                 .background(MainWindowRequestBridge(menuBarManager: menuBarManager))
+         }
+         .menuBarExtraStyle(.menu)
+@@ -439,6 +432,19 @@ struct VoiceInkApp: App {
+     }
+ }
+ 
++private struct SyllMenuBarMark: View {
++    var body: some View {
++        HStack(alignment: .bottom, spacing: 1.5) {
++            RoundedRectangle(cornerRadius: 1).frame(width: 2.5, height: 7)
++            RoundedRectangle(cornerRadius: 1).frame(width: 2.5, height: 11)
++            RoundedRectangle(cornerRadius: 1).frame(width: 2.5, height: 15)
++            RoundedRectangle(cornerRadius: 1).frame(width: 2.5, height: 19)
++        }
++        .frame(width: 16, height: 22, alignment: .bottom)
++        .accessibilityLabel("Syll")
++    }
++}
++
+ private struct MainWindowRequestBridge: View {
+     @Environment(\.openWindow) private var openWindow
+     let menuBarManager: MenuBarManager

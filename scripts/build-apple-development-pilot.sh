@@ -7,7 +7,7 @@ DERIVED_DATA="$ROOT_DIR/build/syll-qa-derived-data"
 SOURCE_APP="$ROOT_DIR/build/syll-qa-derived-data/Build/Products/Debug/VoiceInk.app"
 SIGNING_IDENTITY="69C2BB0FE6E75589F044A08105D99DBEFC6DCFC5"
 EXPECTED_TEAM="A635S52367"
-SYLL_BUNDLE_ID="com.prakashjoshipax.VoiceInk"
+SYLL_BUNDLE_ID="capital.underbite.syll"
 SYLL_NAME="Syll"
 SYLL_EXECUTABLE="Syll"
 
