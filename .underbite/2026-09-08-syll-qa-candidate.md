@@ -7,6 +7,7 @@ Status: **non-installed signed candidate prepared; human installation/Accessibil
 
 - Branch: `feature/syll-dictation-quality-control`.
 - Base commit before reconciliation: `47f0b645cf977f1003388d2a26452b724cca2f54`.
+- Exact reconciled implementation candidate: `c6f7ca47856d1fceb811b7f7c4bda1f7e9401289` (`Prepare signed Syll personal dictionary QA candidate`).
 - The generated `app/` submodule was reset to pinned upstream `3c211dab63454f18cf3f8b58750ec6bf3f5b4d17` and regenerated only through `./scripts/prepare-app.sh --core-only --reset`.
 - The complete candidate source is the superproject overlays, `patches/core.patch`, verifier, tests, and Apple Development QA packager committed with this evidence record. The dirty `app/` submodule is the expected generated output, not the source of truth.
 
