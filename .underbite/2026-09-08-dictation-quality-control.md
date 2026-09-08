@@ -1,7 +1,7 @@
 # Syll — Dictation Quality & Control
 
 Date: 2026-09-08
-Status: accepted product direction; implementation and human experiential QA pending
+Status: implementation candidate automated-green; local install and human experiential QA pending
 
 ## Product authority
 
@@ -18,7 +18,7 @@ A normal user must be able to teach Syll terminology from the product UI. The mi
 - preferred vocabulary: a word/name the user wants Syll to recognise and preserve, e.g. `Shukuru`;
 - alias/reassignment: a form the recogniser may produce mapped to the preferred spelling, e.g. `Super Base` -> `Supabase`.
 
-These should remain one simple Personal Dictionary concept unless implementation evidence proves that separating them is necessary. A dictionary entry is only effective when subsequent real dictation benefits from it.
+These remain one simple Personal Dictionary concept. A dictionary entry is only effective when subsequent real dictation benefits from it.
 
 Cleanup for this slice must not depend on an LLM. Improve deterministic/local cleanup conservatively: remove only high-confidence dictation debris/fillers; improve punctuation, casing, and terminology; preserve intended meaning; do not paraphrase, creatively rewrite, or silently delete meaningful hesitation/qualification. Behaviour must be inspectable and predictable.
 
@@ -26,78 +26,112 @@ The bottom recording indicator is too wide. Preserve the red stop control and wa
 
 ## Grounded repository state before implementation
 
-- GitHub `main` and `codex/voiceink-personal-dictionary` both point to `3984c4598e9baeb60aba3937e3188490dc262416` at the start of this supervision cycle.
+- GitHub `main` and `codex/voiceink-personal-dictionary` both pointed to `3984c4598e9baeb60aba3937e3188490dc262416` at the start of this supervision cycle.
+- Product authority was then recorded on `main`; `main` reached `5144a49c23908bde1c81ea44562709a8515d4d44` before the implementation branch was created.
 - The repository is a thin reproducible overlay over `Beingpax/VoiceInk@3c211dab63454f18cf3f8b58750ec6bf3f5b4d17`.
-- Existing source already contains a unified Personal Dictionary model with preferred spelling + aliases, deterministic non-cascading correction, persistence in existing VoiceInk models, a recognition cache, and an optional fail-open FluidAudio vocabulary-boosting path.
-- Historical handoff evidence explicitly leaves real speech improvement, microphone/hotkey/insertion behaviour, cleanup quality, and human acceptance unverified. The candidate was built historically but not established as David's current installed accepted Syll.
-- GitHub-only supervision cannot truthfully establish local worktree dirtiness or the identity of the currently installed app bundle; the local executor must record those facts before mutation.
+- Existing source already contained a unified Personal Dictionary model with preferred spelling + aliases, deterministic non-cascading correction, persistence in existing VoiceInk models, a recognition cache, and an optional fail-open FluidAudio vocabulary-boosting path.
+- The existing `TranscriptionAutoCleanupService` is retention/audio-file cleanup, not text cleanup.
+- The upstream compact recorder HUD was hard-framed at 184 pt and used flexible spacers around the status/waveform, explaining the excessive empty width.
+- Historical handoff evidence explicitly left real speech improvement, microphone/hotkey/insertion behaviour, cleanup quality, and human acceptance unverified.
+- GitHub-only supervision cannot truthfully establish local worktree dirtiness or the identity of the currently installed app bundle.
 
-## Smallest coherent implementation slice
+## Implemented candidate
 
-Implement **Syll Dictation Quality & Control** as one bounded slice:
+Branch: `feature/syll-dictation-quality-control`
+Automated-green candidate head: `238a10f5c8d3b30d8f920774b693d7516e4772d7`
 
-1. Personal Dictionary effectiveness
-   - Keep one simple user-facing dictionary surface.
-   - Preferred spelling with no alias must persist and feed every supported recognition-vocabulary path.
-   - Aliases must map deterministically to the preferred spelling in a single non-cascading pass.
-   - Saving/editing/enabling/disabling/deleting entries must refresh effective recognition/correction state without restart where practical.
-   - Do not rely on repository `dictionary.yaml` for normal user operation.
+### Personal Dictionary
 
-2. Recognition integration
-   - First diagnose which recogniser/path David's installed Syll actually uses.
-   - Reuse existing provider/native vocabulary hooks where supported.
-   - Do not enable experimental FluidAudio boosting globally by default merely to satisfy this Feature.
-   - Fail open: unsupported boosting must not break transcription; deterministic correction remains available.
+The existing one-surface model is retained: preferred spelling plus optional spoken aliases. Existing persistence, one-pass non-cascading correction, recognition cache refresh, and optional provider/local boosting machinery are preserved rather than replaced.
 
-3. Deterministic/local cleanup
-   - Add a local deterministic cleanup stage after recognition/dictionary correction and before delivery.
-   - At minimum handle conservative conversational filler removal, whitespace/punctuation normalization, sentence-start casing, sentence-final punctuation, and terminology preservation.
-   - High-confidence removable debris may include standalone discourse fillers such as `um`/`uh` and narrowly-scoped sentence-leading `yeah so` / `so` patterns when removal does not change qualification.
-   - Preserve meaningful hedges/qualifiers such as `probably`, `maybe`, `I think`, `sort of`, and repetitions where semantic intent is ambiguous.
-   - Do not call an LLM, enhancement provider, hosted cleanup service, or hidden second model for this stage.
-   - Keep the transform deterministic and directly unit-testable.
+Normal user operation does not require editing `dictionary.yaml`.
 
-4. Recording indicator
-   - Inspect the actual pinned VoiceInk/Syll recording HUD implementation.
-   - Reduce fixed/minimum width, spacers, padding, or frame constraints causing excess horizontal space.
-   - Preserve stop control, waveform, interaction hit targets, and overall visual language.
-   - This is a layout finishing change only.
+### Deterministic/local cleanup
 
-## Verification contract
+Added `DeterministicDictationCleaner` and wired it into the normal post-recognition path after dictionary correction through `WordReplacementService`.
 
-Automated evidence must cover at least:
+Current deliberately conservative behaviour:
 
-- preferred-only dictionary persistence and retrieval;
-- alias persistence and one-pass correction (`Super Base` -> `Supabase`);
-- case/boundary behaviour and non-cascading correction regression;
-- recognition cache refresh after CRUD / enable-disable operations where architecture permits;
-- deterministic filler cleanup on representative conversational text;
-- preservation of meaningful hedges/qualifiers and ordinary prose;
-- punctuation/casing normalization without paraphrase;
-- terminology preservation through cleanup;
-- existing focused tests still passing.
+- trims/collapses whitespace;
+- removes sentence-opening `yeah so` only;
+- removes the existing small high-confidence hesitation family such as `um`, `uh`, `uhm`, `hmm`;
+- normalizes punctuation spacing and duplicate commas produced by filler removal;
+- capitalizes the first letter;
+- adds terminal punctuation when absent;
+- preserves `like`, `probably`, `maybe`, `I think`, `sort of`, `you know`, and other ambiguous semantic hedges rather than guessing.
 
-Automated tests are not Feature acceptance.
+This path contains no LLM call, enhancement provider, hosted cleanup service, or second model. Optional VoiceInk AI enhancement remains a separate downstream capability and is not required for this cleanup.
 
-## Required local build evidence
+### Recording indicator
 
-The local executor must record:
+Added a core overlay for `MiniRecorderView`:
 
-- starting branch, HEAD, and worktree state;
-- currently installed Syll/VoiceInk bundle identity before replacement if determinable;
-- exact prepared/built commit;
-- build/signing verification result;
+- compact width reduced from 184 pt to 136 pt;
+- flexible empty spacers removed in favour of compact 8 pt spacing/padding;
+- stop/record control, waveform/status display, mode button, expanded transcript state, and assistant state are preserved.
+
+Human visual judgement is still required; 136 pt is a candidate, not accepted product authority.
+
+## Automated evidence
+
+GitHub Actions run `34192985335` against candidate `238a10f5c8d3b30d8f920774b693d7516e4772d7` passed:
+
+- project metadata validation;
+- overlay static verification;
+- core overlay preparation and `git diff --check`;
+- full overlay preparation and `git diff --check`;
+- macOS Swift compilation/execution of deterministic cleanup regression tests.
+
+The cleanup regression suite proves representative filler removal, punctuation/casing, question-mark preservation, decimals, and preservation of meaningful hedges including `maybe`, `sort of`, `probably like`, plus ordinary `yeah` outside the narrowly removed `yeah so` opening.
+
+Existing dictionary implementation evidence still covers preferred/alias persistence, case/boundary handling, non-cascading correction, and cache refresh mechanics. These automated checks do not establish real acoustic recognition improvement.
+
+## Installed-build identity
+
+Not yet established.
+
+This supervisor has repository/GitHub access but no access to David's local macOS checkout, signing identity, Accessibility/Microphone permissions, or currently installed Syll application bundle. Therefore no installed build identity is claimed and no human QA should start from this repository-only state.
+
+The local executor must record before/after state:
+
+- starting branch, HEAD, and worktree dirtiness;
+- currently installed Syll/VoiceInk bundle identity if determinable;
+- exact candidate commit prepared/built;
+- build/signing result;
 - exact installed app path/bundle identity used for David's QA;
+- actual recognizer/provider selected in the installed app;
 - any local-only uncommitted state left behind.
+
+Use the core overlay first unless the installed recognizer specifically justifies the experimental FluidAudio boosting overlay. Do not enable FluidAudio globally merely to make a vocabulary claim.
 
 ## Human QA gate
 
-Prepare an installed Syll build for David. David should only have to launch it, add one dictionary term and one alias, dictate several natural sentences, inspect resulting text, glance at the recorder HUD, and return PASS/FAIL with natural-language feedback.
+After the local build is installed, David should only need to:
 
-The script must naturally cover Shukuru, Kean, Supabase, one new preferred vocabulary term, one alias, obvious fillers, and ordinary prose that should not be over-cleaned.
+1. launch Syll;
+2. in Personal Dictionary add preferred term `Shukuru` with no alias;
+3. add preferred term `Supabase` with alias `Super Base`;
+4. optionally add one genuinely new preferred term of his choosing so the test is not pre-baked;
+5. dictate the short script below naturally;
+6. inspect the inserted text and glance at the recorder HUD;
+7. return PASS/FAIL with natural-language feedback.
 
-Do not ask David to debug recogniser internals.
+Suggested natural script:
 
-## Definition of success
+> Yeah so um I think we should send the Shukuru update to Kean tomorrow. We use Super Base for the backend, and I probably like the current setup. Maybe we should keep that part as it is. [new preferred term] is also something I say often.
 
-Success is not that dictionary code exists. Success requires evidence that David can teach his installed Syll terminology himself, receives noticeably better deterministic non-LLM cleanup without meaning-changing rewrites, and sees a materially tighter recording indicator while the product remains small and simple.
+Judgement:
+
+- `Shukuru`, `Kean`, `Supabase`, and the newly added term should come out correctly enough to feel materially more controllable;
+- obvious `yeah so` / `um` debris should disappear;
+- `probably`, `like`, `Maybe`, and the substantive wording should remain rather than being rewritten;
+- punctuation/casing should be clean ordinary prose;
+- the bottom recorder should feel materially tighter while retaining the stop control and waveform.
+
+Do not ask David to debug recognizer internals.
+
+## Exact next action
+
+A local coding executor should check out `feature/syll-dictation-quality-control`, inspect and preserve any existing local worktree changes, prepare the candidate from the pinned upstream commit, build/sign/install it as Syll, record the installed identity and active recognizer/provider here, and then hand David only the human QA gate above.
+
+Do not mark this Feature accepted or complete until David passes experiential QA.
