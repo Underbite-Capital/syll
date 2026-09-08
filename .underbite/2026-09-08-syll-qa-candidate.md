@@ -45,6 +45,12 @@ AssemblyAI is the current recognizer. Core-only preparation remains selected; Fl
 - Provisioning/application identifier: no `embedded.provisionprofile` and no application-identifier entitlement present.
 - `codesign --verify --deep --strict --verbose=2` passed after every Mach-O file, framework, XPC service, helper, and the main app were signed with Team `A635S52367`.
 
+## Same-identity update comparison
+
+- v2 artifact: `build/syll-qa/v2-ready/Syll.app`, version `0.1`, build `217`.
+- v1 and v2 have the same `com.prakashjoshipax.VoiceInk` bundle identifier, `A635S52367` TeamIdentifier, Apple Development authority class, designated requirement, and entitlements. Only the build number differs (`216` -> `217`).
+- This proves the packager can produce compatible same-Mac development identities. It does not yet prove Accessibility continuity: that requires v1 to receive normal consent, then an in-place v1 -> v2 replacement and a live trust/dictation check.
+
 ## Protected working state and rollback
 
 - `/Applications/Syll.app` was inspected read-only and was not replaced, launched, re-signed, copied, deleted, or modified.
