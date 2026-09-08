@@ -1,7 +1,7 @@
 # Syll Personal Dictionary QA candidate — local evidence
 
 Date: 2026-09-08
-Status: **non-installed signed candidate prepared; human installation/Accessibility gate pending**
+Status: **Apple Development installation attempted, launch failed, and working Syll restored**
 
 ## Reconciled source identity
 
@@ -31,7 +31,7 @@ AssemblyAI is the current recognizer. Core-only preparation remains selected; Fl
 - Existing result bundle `build/personal-dictionary-tests.xcresult`: 10 focused dictionary/corrector tests passed for the preceding candidate.
 - New current-source XCTest attempt `build/personal-dictionary-current-tests.xcresult`: valid result bundle but zero tests executed (`result: unknown`), despite the focused test target selection. This is not recorded as passing. The new `recognitionTerms` preferred+alias/dedup/bound tests compile into the candidate source but require a functioning app-hosted XCTest runner for execution evidence.
 
-## QA artifact v1 (not installed)
+## QA artifact v1
 
 - Path: `build/syll-qa/v1-ready/Syll.app`.
 - Display name/name/executable: `Syll` / `Syll` / `Syll`.
@@ -51,13 +51,26 @@ AssemblyAI is the current recognizer. Core-only preparation remains selected; Fl
 - v1 and v2 have the same `com.prakashjoshipax.VoiceInk` bundle identifier, `A635S52367` TeamIdentifier, Apple Development authority class, designated requirement, and entitlements. Only the build number differs (`216` -> `217`).
 - This proves the packager can produce compatible same-Mac development identities. It does not yet prove Accessibility continuity: that requires v1 to receive normal consent, then an in-place v1 -> v2 replacement and a live trust/dictation check.
 
+## Installation attempt and rollback — 2026-09-08
+
+David explicitly approved the recoverable replacement. The following occurred:
+
+- The historical working app was first copied, without modification, to `/Users/david/Documents/VoiceInk Backups/20260908-syll-apple-development-qa/Syll-before-apple-development-215.app` and its signature verified.
+- QA v1 was staged and atomically placed at `/Applications/Syll.app`; its installed deep/strict signature verification passed.
+- Its installed identity was exactly the intended QA identity: bundle `com.prakashjoshipax.VoiceInk`, version/build `0.1` / `216`, Team `A635S52367`, and the v1 designated requirement recorded above.
+- It crashed repeatedly at startup before any Accessibility interaction or dictation check. The reports are `/Users/david/Library/Logs/DiagnosticReports/Syll-2026-09-08-122117.ips`, `Syll-2026-09-08-122304.ips`, and `Syll-2026-09-08-122332.ips`. Observed crashing startup frames include `LanguageDictionary.forCodes`, `SonioxProvider.models`, and Sparkle `SPUUpdaterSettings`; this is not yet a root-cause finding and must not be attributed to TCC or Accessibility.
+- The failed QA v1 is preserved in place, outside LaunchServices' normal app path, at `/Applications/.Syll-crashing-apple-development-216.app` for forensics. It must not be launched again during ordinary use.
+- The immediately preserved historical app was atomically restored to `/Applications/Syll.app`, passed `codesign --verify --deep --strict`, and was relaunched successfully as `/Applications/Syll.app/Contents/MacOS/VoiceInk` (PID observed after restore).
+
+No TCC or Accessibility reset was performed. No permanent user data deletion occurred.
+
 ## Protected working state and rollback
 
-- `/Applications/Syll.app` was inspected read-only and was not replaced, launched, re-signed, copied, deleted, or modified.
+- `/Applications/Syll.app` is again the restored, working historical app. It is not the Apple Development candidate.
 - Current working identity: bundle `com.prakashjoshipax.VoiceInk`, display name `Syll`, historical `VoiceInk Local Dev` authority, no TeamIdentifier, leaf-bound designated requirement.
 - Existing backup evidence remains at `/Users/david/Documents/VoiceInk Backups/20260908-095323`.
 - The QA artifact is deliberately non-installed. Installation must be a single atomic replacement of `/Applications/Syll.app` only after David approves the exact operation, with the current app recoverably preserved. A one-time Accessibility grant may be required because the current installed signature and the QA signature have different designated requirements. No TCC reset is permitted.
 
 ## Next action
 
-The sole human-controlled gate is whether to replace the protected working app with this exact signed Syll QA v1 and grant Accessibility once if macOS asks. A proposed recoverable replacement on 2026-09-08 was not executed because the protected-app boundary requires David's explicit approval for the real `/Applications/Syll.app` migration. Nothing was copied, quit, replaced, launched, or changed by that attempt. Only after effective `AXIsProcessTrusted()` and a basic real dictation can David receive the Personal Dictionary experiential QA script. This Feature remains unaccepted.
+Do not retry installation, request Accessibility consent, or attempt the v1 -> v2 continuity pilot. First reproduce and repair the QA artifact's startup crash in the isolated build/candidate path, verify it launches stably, then repeat the same-Mac pilot from a fresh recoverable backup. The Personal Dictionary Feature remains unaccepted.
