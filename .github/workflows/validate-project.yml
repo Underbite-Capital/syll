@@ -15,6 +15,18 @@ jobs:
       - run: python scripts/validate_project.py
       - run: python scripts/verify_overlay.py
 
+  deterministic-cleanup:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run deterministic cleanup tests
+        run: |
+          swiftc \
+            overlays/core/VoiceInk/Transcription/Processing/DeterministicDictationCleaner.swift \
+            scripts/DeterministicDictationCleanerTests.swift \
+            -o /tmp/syll-cleanup-tests
+          /tmp/syll-cleanup-tests
+
   apply-overlay:
     runs-on: ubuntu-latest
     strategy:
