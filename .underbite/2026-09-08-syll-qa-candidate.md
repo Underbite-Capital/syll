@@ -60,4 +60,4 @@ AssemblyAI is the current recognizer. Core-only preparation remains selected; Fl
 
 ## Next action
 
-The sole human-controlled gate is whether to replace the protected working app with this exact signed Syll QA v1 and grant Accessibility once if macOS asks. Only after effective `AXIsProcessTrusted()` and a basic real dictation can David receive the Personal Dictionary experiential QA script. This Feature remains unaccepted.
+The sole human-controlled gate is whether to replace the protected working app with this exact signed Syll QA v1 and grant Accessibility once if macOS asks. A proposed recoverable replacement on 2026-09-08 was not executed because the protected-app boundary requires David's explicit approval for the real `/Applications/Syll.app` migration. Nothing was copied, quit, replaced, launched, or changed by that attempt. Only after effective `AXIsProcessTrusted()` and a basic real dictation can David receive the Personal Dictionary experiential QA script. This Feature remains unaccepted.
