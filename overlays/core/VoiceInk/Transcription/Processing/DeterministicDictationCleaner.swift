@@ -25,7 +25,9 @@ enum DeterministicDictationCleaner {
         result = replacing(pattern: #"\s+([,.;:!?])"#, in: result, with: "$1")
         result = replacing(pattern: #",\s*,+"#, in: result, with: ",")
         result = replacing(pattern: #"\s+"#, in: result, with: " ")
-        result = result.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters.subtracting(CharacterSet(charactersIn: ".!?"))))
+        result = replacing(pattern: #"^[,;:]\s*"#, in: result, with: "")
+        result = replacing(pattern: #"\s*[,;:]$"#, in: result, with: "")
+        result = result.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !result.isEmpty else { return result }
         result = uppercaseFirstLetter(in: result)
@@ -45,6 +47,6 @@ enum DeterministicDictationCleaner {
     private static func uppercaseFirstLetter(in text: String) -> String {
         guard let index = text.firstIndex(where: { $0.isLetter }) else { return text }
         let next = text.index(after: index)
-        return text[..<index] + text[index..<next].uppercased() + text[next...]
+        return String(text[..<index]) + text[index..<next].uppercased() + String(text[next...])
     }
 }
