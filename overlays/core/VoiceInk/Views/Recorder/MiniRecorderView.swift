@@ -7,7 +7,7 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
     let onRecordButtonTapped: () -> Void
     let onCloseTapped: () -> Void
     let onAssistantFollowUp: (String) -> Void
-    @AppStorage(RecorderDisplaySettingsKeys.showLiveTranscript) private var showLiveTranscript = true
+    private let presentationPolicy: SyllRecorderHUDPresentationPolicy = .ordinaryPhase1
 
     // MARK: - Layout Constants
 
@@ -19,9 +19,10 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
     private let expandedCornerRadius: CGFloat = 14
 
     private var hasLiveTranscript: Bool {
-        showLiveTranscript
-            && stateProvider.recordingState == .recording
-            && !stateProvider.partialTranscript.isEmpty
+        presentationPolicy.shouldRenderTranscriptContent(
+            isRecording: stateProvider.recordingState == .recording,
+            partialTranscript: stateProvider.partialTranscript
+        )
     }
 
     private var hasAssistantResponse: Bool {
@@ -33,8 +34,10 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
     }
 
     private var liveAssistantFollowUpText: String {
-        guard showLiveTranscript, stateProvider.recordingState == .recording else { return "" }
-        return stateProvider.partialTranscript
+        presentationPolicy.transcriptContent(
+            isRecording: stateProvider.recordingState == .recording,
+            partialTranscript: stateProvider.partialTranscript
+        )
     }
 
     private var controlBar: some View {

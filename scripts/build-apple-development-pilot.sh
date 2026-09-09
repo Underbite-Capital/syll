@@ -43,6 +43,15 @@ if [[ ! -d "$PROJECT" || ! -f "$ENTITLEMENTS" ]]; then
   exit 1
 fi
 
+# A generic upstream VoiceInk checkout may compile, but it does not contain the
+# frozen Phase 1 recovery runtime that was accepted for Syll. Refuse to package
+# such a tree as Syll: use scripts/prepare-app.sh to compose the recovery layer
+# before this build path is used.
+if ! rg -q 'SyllPhase1Runtime' "$ROOT_DIR/app/VoiceInk/Transcription/Engine/VoiceInkEngine.swift"; then
+  echo "Refusing to package an uncomposed source tree as Syll: Phase 1 recovery runtime is missing." >&2
+  exit 1
+fi
+
 if [[ -e "$APP_BUNDLE" ]]; then
   echo "Refusing to overwrite existing Syll QA artifact: $APP_BUNDLE" >&2
   exit 1
@@ -81,7 +90,9 @@ ditto "$SOURCE_APP" "$APP_BUNDLE"
 /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$APP_BUNDLE/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$APP_BUNDLE/Contents/Info.plist" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile AppIcon" "$APP_BUNDLE/Contents/Info.plist"
-ditto "/Applications/Syll.app/Contents/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+# The AppIcon is compiled from the versioned asset catalog. Never copy it from
+# an installed application: that permits a stale or rejected identity to leak
+# into a new build.
 mv "$APP_BUNDLE/Contents/MacOS/VoiceInk" "$APP_BUNDLE/Contents/MacOS/$SYLL_EXECUTABLE"
 
 while IFS= read -r -d '' nested_code; do

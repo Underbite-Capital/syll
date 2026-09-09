@@ -101,26 +101,26 @@ MUTATED=1
 git -C "$APP_DIR" fetch origin "$UPSTREAM_COMMIT"
 git -C "$APP_DIR" checkout --detach "$UPSTREAM_COMMIT"
 
-git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/core.patch"
-git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-branding.patch"
-git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-recovery.patch"
-
 if [[ "$MODE" == "full" ]]; then
   if [[ ! -d "$ROOT_DIR/overlays/boosting" || ! -f "$ROOT_DIR/patches/boosting.patch" ]]; then
     echo "Boosting overlay is not present. Use --core-only or restore the missing files." >&2
     exit 1
   fi
-
-  git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/boosting.patch"
 fi
 
 cp -R "$ROOT_DIR/overlays/core/." "$APP_DIR/"
+git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/core.patch"
 git -C "$APP_DIR" apply "$ROOT_DIR/patches/core.patch"
+git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-branding.patch"
 git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-branding.patch"
+git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-recovery.patch"
 git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-recovery.patch"
+git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-shell-structural.patch"
+git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-shell-structural.patch"
 
 if [[ "$MODE" == "full" ]]; then
   cp -R "$ROOT_DIR/overlays/boosting/." "$APP_DIR/"
+  git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/boosting.patch"
   git -C "$APP_DIR" apply "$ROOT_DIR/patches/boosting.patch"
 fi
 

@@ -26,6 +26,13 @@ jobs:
             scripts/DeterministicDictationCleanerTests.swift \
             -o /tmp/syll-cleanup-tests
           /tmp/syll-cleanup-tests
+      - name: Run recorder HUD presentation policy tests
+        run: |
+          swiftc \
+            overlays/core/VoiceInk/Views/Recorder/SyllRecorderHUDPresentationPolicy.swift \
+            scripts/SyllRecorderHUDPresentationPolicyTests.swift \
+            -o /tmp/syll-recorder-hud-policy-tests
+          /tmp/syll-recorder-hud-policy-tests
 
   apply-overlay:
     runs-on: ubuntu-latest

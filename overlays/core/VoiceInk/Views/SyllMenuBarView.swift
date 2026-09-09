@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SyllMenuBarView: View {
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     @EnvironmentObject private var engine: VoiceInkEngine
     @EnvironmentObject private var recorderUIManager: RecorderUIManager
     @EnvironmentObject private var menuBarManager: MenuBarManager
@@ -25,14 +25,7 @@ struct SyllMenuBarView: View {
 
     private func show(_ destination: ViewType) {
         mainWindowNavigation.navigate(to: destination)
-        let existing = WindowManager.shared.currentMainWindow()
         menuBarManager.activateForPresentedWindow()
-        if existing == nil {
-            WindowManager.shared.prepareForUserRequestedMainWindow()
-            openWindow(id: AppWindowID.main)
-        } else {
-            openWindow(id: AppWindowID.main)
-            WindowManager.shared.showMainWindow()
-        }
+        openSettings()
     }
 }

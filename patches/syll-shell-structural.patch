@@ -1,0 +1,87 @@
+diff --git a/VoiceInk/AppDelegate.swift b/VoiceInk/AppDelegate.swift
+index 581e214..e754b55 100644
+--- a/VoiceInk/AppDelegate.swift
++++ b/VoiceInk/AppDelegate.swift
+@@ -7,13 +7,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
+     func applicationDidFinishLaunching(_ notification: Notification) {
+         menuBarManager?.applyActivationPolicy()
+-        // SwiftUI creates the Window scene during launch on macOS 14. Hide that
+-        // uninvited window after scene construction; menu actions explicitly mark
+-        // the next window as user-requested before presenting it.
+-        DispatchQueue.main.async { WindowManager.shared.hideMainWindowIfUnrequested() }
+-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+-            WindowManager.shared.hideMainWindowIfUnrequested()
+-        }
+     }
+ 
+     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+@@ -28,7 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
+             return false
+         }
+ 
+-        return true
++        return false
+     }
+ 
+     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
+index dfd256c..4225c0e 100644
+--- a/VoiceInk/VoiceInk.swift
++++ b/VoiceInk/VoiceInk.swift
+@@ -280,7 +280,7 @@ struct VoiceInkApp: App {
+     }
+ 
+     var body: some Scene {
+-        Window("Syll", id: AppWindowID.main) {
++        Settings {
+             Group {
+                 if hasCompletedOnboardingV2 {
+                     SyllControlView()
+@@ -358,9 +358,7 @@ struct VoiceInkApp: App {
+                 licenseViewModel.refreshLicenseState()
+             }
+         }
+-        .windowStyle(.hiddenTitleBar)
+         .defaultSize(width: 720, height: 560)
+-        .windowResizability(.contentSize)
+         .commands {
+             CommandGroup(replacing: .newItem) {}
+ 
+@@ -384,7 +382,6 @@ struct VoiceInkApp: App {
+                 .environmentObject(enhancementService)
+         } label: {
+             SyllMenuBarMark()
+-                .background(MainWindowRequestBridge(menuBarManager: menuBarManager))
+         }
+         .menuBarExtraStyle(.menu)
+ 
+@@ -452,29 +449,6 @@ private struct SyllMenuBarMark: View {
+     }
+ }
+ 
+-private struct MainWindowRequestBridge: View {
+-    @Environment(\.openWindow) private var openWindow
+-    let menuBarManager: MenuBarManager
+-
+-    var body: some View {
+-        Color.clear
+-            .frame(width: 0, height: 0)
+-            .onReceive(NotificationCenter.default.publisher(for: .showMainWindowRequested)) { _ in
+-                let existingWindow = WindowManager.shared.currentMainWindow()
+-
+-                if existingWindow == nil {
+-                    menuBarManager.activateForPresentedWindow()
+-                    WindowManager.shared.prepareForUserRequestedMainWindow()
+-                    openWindow(id: AppWindowID.main)
+-                } else {
+-                    menuBarManager.activateForPresentedWindow()
+-                    openWindow(id: AppWindowID.main)
+-                    WindowManager.shared.showMainWindow()
+-                }
+-            }
+-    }
+-}
+-
+ struct WindowAccessor: NSViewRepresentable {
+     let callback: (NSWindow) -> Void
+ 
