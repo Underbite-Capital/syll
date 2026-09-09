@@ -1,7 +1,7 @@
 # Syll recovery candidate
 
 Date: 2026-09-08
-Status: build 227 installed; human QA pending
+Status: build 228 installed; physical Fn and human QA pending
 
 ## Authority recovered
 
@@ -20,6 +20,8 @@ The current Notion Phase 1 contract confirms that ordinary Syll use is a menu-ba
 - Build 225 incorrectly added a second service-managed login registration alongside the existing ordinary Syll login item. Build 226 removed that duplicate registration once and does not automatically re-enable it.
 - Identity migration version 2 validates and migrates `modeConfigurationsV2` (or its legacy predecessor) plus an active configuration ID that belongs to the decoded mode set. This repairs the earlier `No mode configured` failure without synthesizing a replacement mode.
 - The four-bar status mark is rendered as an AppKit template image so macOS supplies the correct light/dark menu-bar foreground color.
+- Build 228 restores the liked shortcut mechanism for modifier-only shortcuts: non-suppressing global and local `NSEvent.flagsChanged` monitors handle Fn/Globe, while ordinary key shortcuts retain the listen-only event tap. Build 227's event tap installed but did not receive David's physical Fn transitions.
+- Build 228 also suppresses the uninvited SwiftUI main window after scene construction on macOS 14. Setup remains available only through the Syll menu. A read-only post-launch check returned no visible Syll windows.
 
 ## Evidence
 
@@ -31,13 +33,13 @@ The current Notion Phase 1 contract confirms that ordinary Syll use is a menu-ba
 - Candidate identity: `capital.underbite.syll`; name/display/executable `Syll`; `LSUIElement=true`.
 - Signing: Apple Development `69C2BB0FE6E75589F044A08105D99DBEFC6DCFC5`; TeamIdentifier `A635S52367`; deep/strict verification PASS in the normal macOS context.
 - Build 223 exposed the legacy local Keychain service and produced a password dialog labelled VoiceInk. It was stopped and archived. Build 224 changed the compiled service to `capital.underbite.syll.Local`; it launched menu-bar-only without that dialog. A read-only `sfltool dumpbtm` probe then caused an unrelated administrator prompt; the probe was terminated and must not be repeated in David's active session.
-- `/Applications/Syll.app` is now build 227, bundle ID `capital.underbite.syll`, name/display/executable `Syll`, `LSUIElement=true`, Apple Development signed with TeamIdentifier `A635S52367`. Deep/strict signature verification passed. Exactly one Syll process launched and no VoiceInk process was observed.
-- Recoverable archives are preserved through `build/recovery-archives/Syll-build226.app.zip`.
+- `/Applications/Syll.app` is now build 228, bundle ID `capital.underbite.syll`, name/display/executable `Syll`, `LSUIElement=true`, Apple Development signed with TeamIdentifier `A635S52367`. Deep/strict signature verification passed. Exactly one Syll process launched (PID 6956), no visible window was reported, and no VoiceInk process was launched.
+- Recoverable archives are preserved through `build/recovery-archives/Syll-build227.app.zip`.
 - The earlier focused dictionary/correction evidence remains 12/12 PASS. Recovery compilation and overlay validation pass. App-hosted tests were not rerun because their upstream test host causes desktop/keychain interruption.
-- Build 227 completed migration version 2 and restored active configuration `10000000-0000-0000-0000-000000000001`. The app and test bundle compile without execution. Personal Dictionary visual QA, physical Fn, real dictation, Accessibility-dependent insertion, and the corrected icon's dark/light visual appearance are NOT TESTED. The Feature is not accepted.
+- Build 227 completed migration version 2 and restored active configuration `10000000-0000-0000-0000-000000000001`. Build 228 compiles, its reproducible patch parses, and the core overlay validates. Personal Dictionary visual QA, physical Fn, real dictation, Accessibility-dependent insertion, and the corrected icon's dark/light visual appearance remain NOT TESTED. The Feature is not accepted.
 
 ## Exact next action
 
-David should restart the Mac once. After login, report whether exactly one Syll menu-bar item appears, no VoiceInk UI or password dialog appears, and holding Fn records/transcribes. If Fn works, open Personal Dictionary from the Syll menu and perform the bounded terminology QA. If dictation reports a missing AssemblyAI credential, re-enter it into Syll's own keychain namespace rather than granting the renamed app perpetual access to the legacy VoiceInk item.
+David should first perform one physical Fn dictation without restarting. If that passes, restart the Mac once and report whether exactly one Syll menu-bar item appears, no standalone window/VoiceInk UI/password dialog appears, and Fn still records/transcribes. Then open Personal Dictionary from the Syll menu for bounded terminology QA. If dictation reports a missing AssemblyAI credential, re-enter it into Syll's own keychain namespace rather than granting the renamed app perpetual access to the legacy VoiceInk item.
 
 Do not call the Feature accepted.

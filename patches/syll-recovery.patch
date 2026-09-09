@@ -18,6 +18,39 @@ index 4d98a62..448c9e8 100644
  	<key>NSAppleEventsUsageDescription</key>
  	<string>VoiceInk needs to interact with your browser to detect the current website for applying website-specific configurations.</string>
  	<key>NSScreenCaptureUsageDescription</key>
+diff --git a/VoiceInk/AppDelegate.swift b/VoiceInk/AppDelegate.swift
+--- a/VoiceInk/AppDelegate.swift
++++ b/VoiceInk/AppDelegate.swift
+@@ -7,6 +7,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
+ 
+     func applicationDidFinishLaunching(_ notification: Notification) {
+         menuBarManager?.applyActivationPolicy()
++        // SwiftUI creates the Window scene during launch on macOS 14. Hide that
++        // uninvited window after scene construction; menu actions explicitly mark
++        // the next window as user-requested before presenting it.
++        DispatchQueue.main.async { WindowManager.shared.hideMainWindowIfUnrequested() }
++        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
++            WindowManager.shared.hideMainWindowIfUnrequested()
++        }
+     }
+ 
+     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+diff --git a/VoiceInk/WindowManager.swift b/VoiceInk/WindowManager.swift
+--- a/VoiceInk/WindowManager.swift
++++ b/VoiceInk/WindowManager.swift
+@@ -130,6 +130,12 @@ class WindowManager: NSObject {
+         window.orderOut(nil)
+     }
+ 
++    func hideMainWindowIfUnrequested() {
++        guard UserDefaults.standard.bool(forKey: "IsMenuBarOnly") else { return }
++        guard !shouldShowNextConfiguredMainWindow else { return }
++        resolveMainWindow()?.orderOut(nil)
++    }
++
+     func currentMainWindow() -> NSWindow? {
+         resolveMainWindow()
+     }
 diff --git a/VoiceInk/Services/KeychainService.swift b/VoiceInk/Services/KeychainService.swift
 index 3ec45c0..bf06596 100644
 --- a/VoiceInk/Services/KeychainService.swift
@@ -67,7 +100,73 @@ diff --git a/VoiceInk/Shortcuts/ShortcutMonitor.swift b/VoiceInk/Shortcuts/Short
 index 8647060..6365b9f 100644
 --- a/VoiceInk/Shortcuts/ShortcutMonitor.swift
 +++ b/VoiceInk/Shortcuts/ShortcutMonitor.swift
-@@ -92,15 +92,15 @@ final class ShortcutMonitor {
+@@ -26,6 +26,8 @@ final class ShortcutMonitor {
+     private var onShortcutInterrupted: ((ShortcutAction, TimeInterval) -> Void)?
+     private var eventTap: CFMachPort?
+     private var eventTapRunLoopSource: CFRunLoopSource?
++    private var globalModifierMonitor: Any?
++    private var localModifierMonitor: Any?
+     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "ShortcutMonitor")
+ 
+     private static let shortcutInterruptionWindow: TimeInterval = 1.0
+@@ -54,6 +56,8 @@ final class ShortcutMonitor {
+         self.onKeyUp = onKeyUp
+         self.onShortcutInterrupted = onShortcutInterrupted
+ 
++        installModifierMonitors()
++
+         return installEventTap()
+     }
+ 
+@@ -70,6 +74,15 @@ final class ShortcutMonitor {
+             self.eventTap = nil
+         }
+ 
++        if let globalModifierMonitor {
++            NSEvent.removeMonitor(globalModifierMonitor)
++            self.globalModifierMonitor = nil
++        }
++        if let localModifierMonitor {
++            NSEvent.removeMonitor(localModifierMonitor)
++            self.localModifierMonitor = nil
++        }
++
+         shortcuts = [:]
+         interruptibleActions = []
+         onKeyDown = nil
+@@ -77,6 +90,31 @@ final class ShortcutMonitor {
+         onShortcutInterrupted = nil
+     }
+ 
++    /// Modifier-only shortcuts (especially Fn/Globe) are delivered reliably by
++    /// NSEvent's non-suppressing monitors. The older Syll build used this path;
++    /// a listen-only CGEvent tap can install successfully yet receive no Fn
++    /// transitions on current macOS hardware.
++    private func installModifierMonitors() {
++        guard shortcuts.values.contains(where: { $0.shortcut.isModifierOnly }) else { return }
++
++        globalModifierMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
++            self?.handleModifierEvent(event)
++        }
++        localModifierMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
++            self?.handleModifierEvent(event)
++            return event
++        }
++    }
++
++    private func handleModifierEvent(_ event: NSEvent) {
++        _ = handleEvent(
++            kind: .flagsChanged,
++            keyCode: event.keyCode,
++            modifierFlags: event.modifierFlags,
++            eventTime: ProcessInfo.processInfo.systemUptime
++        )
++    }
++
+     private func installEventTap() -> Bool {
+         let callback: CGEventTapCallBack = { _, type, event, userInfo in
+             guard let userInfo else {
+@@ -92,15 +130,15 @@ final class ShortcutMonitor {
                  return Unmanaged.passUnretained(event)
              }
  
@@ -86,6 +185,14 @@ index 8647060..6365b9f 100644
                  eventsOfInterest: Self.eventMask,
                  callback: callback,
                  userInfo: Unmanaged.passUnretained(self).toOpaque()
+@@ -335,7 +373,6 @@ final class ShortcutMonitor {
+     private static let eventMask: CGEventMask = [
+         CGEventType.keyDown,
+         CGEventType.keyUp,
+-        CGEventType.flagsChanged,
+     ].reduce(CGEventMask(0)) { mask, type in
+         mask | (CGEventMask(1) << Int(type.rawValue))
+     }
 diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
 index 5769b2d..f238d98 100644
 --- a/VoiceInk/VoiceInk.swift

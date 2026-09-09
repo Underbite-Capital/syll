@@ -4,7 +4,7 @@ A small, menu-bar-first macOS dictation app built on VoiceInk's mature recorder 
 
 ## Current status
 
-The active implementation lives on `feature/syll-dictation-quality-control`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present, with a workflow configured to verify clean application. Apple Development-signed local build 227 is installed for experiential QA; dictation, insertion, cleanup quality, recognition quality, Personal Dictionary presentation, and restart/login behavior still require David's direct judgement.
+The active implementation lives on `feature/syll-dictation-quality-control`. It is deliberately a review candidate, not a claimed release. The core code and exact upstream patches are present, with a workflow configured to verify clean application. Apple Development-signed local build 228 is installed for experiential QA; dictation, insertion, cleanup quality, recognition quality, Personal Dictionary presentation, and restart/login behavior still require David's direct judgement.
 
 ## Scope
 
