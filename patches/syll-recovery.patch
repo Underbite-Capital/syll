@@ -40,23 +40,25 @@ diff --git a/VoiceInk/Services/LaunchAtLoginManager.swift b/VoiceInk/Services/La
 index 580e641..8c3ae18 100644
 --- a/VoiceInk/Services/LaunchAtLoginManager.swift
 +++ b/VoiceInk/Services/LaunchAtLoginManager.swift
-@@ -10,6 +10,7 @@ final class LaunchAtLoginManager: ObservableObject {
+@@ -10,7 +10,8 @@ final class LaunchAtLoginManager: ObservableObject {
      @Published private(set) var isEnabled = false
      @Published private(set) var isUpdating = false
  
 -    private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "LaunchAtLogin")
 +    private let logger = Logger(subsystem: "capital.underbite.syll", category: "LaunchAtLogin")
-+    private let initialRegistrationKey = "SyllDidRequestInitialLaunchAtLogin"
++    private let duplicateRegistrationCleanupKey = "SyllRemovedDuplicateServiceLoginItem"
      private var isRefreshing = false
      private var operationGeneration = 0
      private var pendingEnabledState: Bool?
-@@ -18,6 +19,10 @@ final class LaunchAtLoginManager: ObservableObject {
+@@ -18,6 +19,12 @@ final class LaunchAtLoginManager: ObservableObject {
  
      private init() {
          refresh()
-+        if !UserDefaults.standard.bool(forKey: initialRegistrationKey) {
-+            UserDefaults.standard.set(true, forKey: initialRegistrationKey)
-+            setEnabled(true)
++        if UserDefaults.standard.bool(forKey: "SyllDidRequestInitialLaunchAtLogin")
++            && !UserDefaults.standard.bool(forKey: duplicateRegistrationCleanupKey)
++        {
++            UserDefaults.standard.set(true, forKey: duplicateRegistrationCleanupKey)
++            setEnabled(false)
 +        }
      }
  
@@ -143,6 +145,41 @@ index 5769b2d..f238d98 100644
                  .environmentObject(engine)
                  .environmentObject(whisperModelManager)
                  .environmentObject(fluidAudioModelManager)
+diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
+--- a/VoiceInk/VoiceInk.swift
++++ b/VoiceInk/VoiceInk.swift
+@@ -430,14 +430,24 @@ struct VoiceInkApp: App {
+ }
+ 
+ private struct SyllMenuBarMark: View {
++    private static let templateImage: NSImage = {
++        let image = NSImage(size: NSSize(width: 18, height: 18))
++        image.lockFocus()
++        NSColor.black.setFill()
++        let heights: [CGFloat] = [6, 9, 12, 16]
++        for (index, height) in heights.enumerated() {
++            let rect = NSRect(x: CGFloat(index) * 4 + 1, y: 1, width: 2.5, height: height)
++            NSBezierPath(roundedRect: rect, xRadius: 1, yRadius: 1).fill()
++        }
++        image.unlockFocus()
++        image.isTemplate = true
++        return image
++    }()
++
+     var body: some View {
+-        HStack(alignment: .bottom, spacing: 1.5) {
+-            RoundedRectangle(cornerRadius: 1).frame(width: 2.5, height: 7)
+-            RoundedRectangle(cornerRadius: 1).frame(width: 2.5, height: 11)
+-            RoundedRectangle(cornerRadius: 1).frame(width: 2.5, height: 15)
+-            RoundedRectangle(cornerRadius: 1).frame(width: 2.5, height: 19)
+-        }
+-        .frame(width: 16, height: 22, alignment: .bottom)
++        Image(nsImage: Self.templateImage)
++            .renderingMode(.template)
++            .frame(width: 18, height: 18)
+         .accessibilityLabel("Syll")
+     }
+ }
 diff --git a/VoiceInk/WindowManager.swift b/VoiceInk/WindowManager.swift
 index d97f793..54f47aa 100644
 --- a/VoiceInk/WindowManager.swift

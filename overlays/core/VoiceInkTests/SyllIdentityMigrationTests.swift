@@ -32,6 +32,25 @@ final class SyllIdentityMigrationTests: XCTestCase {
         XCTAssertEqual(destination.data(forKey: ShortcutAction.primaryRecording.userDefaultsKey), valid)
     }
 
+    func testMigratesValidatedModesAndActiveMode() throws {
+        let source = makeSuite("source"), destination = makeSuite("destination")
+        let mode = ModeConfig(
+            name: "Default",
+            isAIEnhancementEnabled: false,
+            selectedTranscriptionModelName: "assemblyai",
+            isEnabled: true,
+            isDefault: true
+        )
+        source.set(try JSONEncoder().encode([mode]), forKey: "modeConfigurationsV2")
+        source.set(mode.id.uuidString, forKey: "activeConfigurationId")
+
+        SyllIdentityMigration.runIfNeeded(source: source, destination: destination)
+
+        let data = try XCTUnwrap(destination.data(forKey: "modeConfigurationsV2"))
+        XCTAssertEqual(try JSONDecoder().decode([ModeConfig].self, from: data), [mode])
+        XCTAssertEqual(destination.string(forKey: "activeConfigurationId"), mode.id.uuidString)
+    }
+
     private func makeSuite(_ label: String) -> UserDefaults {
         let name = "SyllIdentityMigrationTests.\(label).\(UUID().uuidString)"
         suites.append(name)
