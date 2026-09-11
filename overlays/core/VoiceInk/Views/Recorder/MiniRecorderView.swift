@@ -12,7 +12,8 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
     // MARK: - Layout Constants
 
     private let controlBarHeight: CGFloat = 40
-    private let compactWidth: CGFloat = 136
+    private let compactWidth: CGFloat = 144
+    private let commandWidth: CGFloat = 420
     private let expandedWidth: CGFloat = 300
     private let assistantWidth: CGFloat = 520
     private let compactCornerRadius: CGFloat = 20
@@ -27,6 +28,10 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
 
     private var hasAssistantResponse: Bool {
         assistantSession.isVisible
+    }
+
+    private var hasCommandOutcome: Bool {
+        stateProvider.commandOutcome != nil
     }
 
     private var shouldShowCloseButton: Bool {
@@ -59,13 +64,30 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
             )
             .frame(maxWidth: .infinity)
 
-            RecorderModeButton(
-                buttonSize: 22,
-                padding: EdgeInsets()
-            )
+            if stateProvider.isCommandMode {
+                Image(systemName: "terminal")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.orange)
+                    .frame(width: 22)
+                    .accessibilityLabel("Command Mode")
+            } else {
+                RecorderModeButton(
+                    buttonSize: 22,
+                    padding: EdgeInsets()
+                )
+            }
         }
         .padding(.horizontal, 8)
         .frame(height: controlBarHeight)
+    }
+
+    @ViewBuilder
+    private var commandOutcomeSection: some View {
+        if let outcome = stateProvider.commandOutcome {
+            SyllCommandOutcomeView(outcome: outcome)
+
+            Divider().background(Color.white.opacity(0.15))
+        }
     }
 
     private var transcriptSection: some View {
@@ -79,7 +101,9 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if hasAssistantResponse {
+            if hasCommandOutcome {
+                commandOutcomeSection
+            } else if hasAssistantResponse {
                 AssistantPanelView(
                     session: assistantSession,
                     liveFollowUpText: liveAssistantFollowUpText,
@@ -91,7 +115,11 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
             }
             controlBar
         }
-        .frame(width: hasAssistantResponse ? assistantWidth : (hasLiveTranscript ? expandedWidth : compactWidth))
+        .frame(
+            width: hasCommandOutcome
+                ? commandWidth
+                : (hasAssistantResponse ? assistantWidth : (hasLiveTranscript ? expandedWidth : compactWidth))
+        )
         .background(Color.black)
         .clipShape(
             RoundedRectangle(
@@ -101,6 +129,7 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
         )
         .animation(.easeInOut(duration: 0.3), value: hasLiveTranscript)
         .animation(.easeInOut(duration: 0.3), value: hasAssistantResponse)
+        .animation(.easeInOut(duration: 0.2), value: hasCommandOutcome)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 }

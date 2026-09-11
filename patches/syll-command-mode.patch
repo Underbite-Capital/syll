@@ -1,0 +1,741 @@
+diff --git a/VoiceInk/Models/TranscriptionModelRegistry.swift b/VoiceInk/Models/TranscriptionModelRegistry.swift
+index f1c2874..9ff22cc 100644
+--- a/VoiceInk/Models/TranscriptionModelRegistry.swift
++++ b/VoiceInk/Models/TranscriptionModelRegistry.swift
+@@ -3,7 +3,7 @@ import Foundation
+ enum TranscriptionModelRegistry {
+ 
+     static var models: [any TranscriptionModel] {
+-        return predefinedModels + CustomCloudModelManager.shared.customModels
++        predefinedModels
+     }
+ 
+     private static let predefinedModels: [any TranscriptionModel] = {
+@@ -169,7 +169,6 @@ enum TranscriptionModelRegistry {
+             ),
+         ]
+ 
+-        let cloudModels: [any TranscriptionModel] = CloudProviderRegistry.allProviders.flatMap { $0.models }
+-        return nonCloudModels + cloudModels
++        return nonCloudModels
+     }()
+ }
+diff --git a/VoiceInk/Paste/CursorPaster.swift b/VoiceInk/Paste/CursorPaster.swift
+index 6eaf261..78dceb2 100644
+--- a/VoiceInk/Paste/CursorPaster.swift
++++ b/VoiceInk/Paste/CursorPaster.swift
+@@ -64,7 +64,7 @@ class CursorPaster {
+         await wait(prePasteDelay)
+ 
+         let pasteResult = await postPasteCommand()
+-        if shouldRestoreClipboard {
++        if shouldRestoreClipboard && pasteResult.didPostPasteCommand {
+             scheduleClipboardRestore(
+                 savedContents,
+                 expectedText: text,
+diff --git a/VoiceInk/Shortcuts/RecordingShortcutManager.swift b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
+index 07c45c4..2533a13 100644
+--- a/VoiceInk/Shortcuts/RecordingShortcutManager.swift
++++ b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
+@@ -125,6 +125,9 @@ class RecordingShortcutManager: ObservableObject {
+             toggleRecorderPanel: { modeId in
+                 await recorderUIManager.toggleRecorderPanel(modeId: modeId)
+             },
++            latchCommandMode: {
++                engine.latchCommandMode()
++            },
+             cancelRecording: {
+                 await recorderUIManager.cancelRecording()
+             }
+@@ -346,6 +349,7 @@ final class RecordingShortcutModeHandler {
+     private let isRecorderVisible: @MainActor () -> Bool
+     private let recordingState: @MainActor () -> RecordingState
+     private let toggleRecorderPanel: @MainActor (UUID?) async -> Void
++    private let latchCommandMode: @MainActor () -> Void
+     private let cancelRecording: @MainActor () async -> Void
+ 
+     private var shortcutPressStartTime: TimeInterval?
+@@ -354,26 +358,30 @@ final class RecordingShortcutModeHandler {
+     private var activeRecordingShortcutAction: ShortcutAction?
+     private var interruptedRecordingActions = Set<ShortcutAction>()
+     private var activeShortcutCanCancelAccidentalStart = false
+-    private var lastShortcutPressTime: Date?
++    private var pendingHybridTap: Task<Void, Never>?
+ 
+-    private let shortcutPressCooldown: TimeInterval = 0.5
+     private let hybridPressThreshold: TimeInterval = 0.5
++    private let hybridDoubleTapInterval: TimeInterval = 0.5
+ 
+     init(
+         canHandleShortcutAction: @escaping @MainActor () -> Bool,
+         isRecorderVisible: @escaping @MainActor () -> Bool,
+         recordingState: @escaping @MainActor () -> RecordingState,
+         toggleRecorderPanel: @escaping @MainActor (UUID?) async -> Void,
++        latchCommandMode: @escaping @MainActor () -> Void,
+         cancelRecording: @escaping @MainActor () async -> Void
+     ) {
+         self.canHandleShortcutAction = canHandleShortcutAction
+         self.isRecorderVisible = isRecorderVisible
+         self.recordingState = recordingState
+         self.toggleRecorderPanel = toggleRecorderPanel
++        self.latchCommandMode = latchCommandMode
+         self.cancelRecording = cancelRecording
+     }
+ 
+     func reset() {
++        pendingHybridTap?.cancel()
++        pendingHybridTap = nil
+         isShortcutPressed = false
+         shortcutPressStartTime = nil
+         isHandsFreeRecording = false
+@@ -392,9 +400,13 @@ final class RecordingShortcutModeHandler {
+             return
+         }
+ 
+-        if let lastTrigger = lastShortcutPressTime,
+-            Date().timeIntervalSince(lastTrigger) < shortcutPressCooldown
+-        {
++        if mode == .hybrid, pendingHybridTap != nil {
++            pendingHybridTap?.cancel()
++            pendingHybridTap = nil
++            isHandsFreeRecording = true
++            if action == .primaryRecording {
++                latchCommandMode()
++            }
+             return
+         }
+ 
+@@ -404,13 +416,13 @@ final class RecordingShortcutModeHandler {
+         isShortcutPressed = true
+         activeRecordingShortcutAction = action
+         activeShortcutCanCancelAccidentalStart = canCurrentShortcutPressCancelAccidentalStart
+-        lastShortcutPressTime = Date()
+         shortcutPressStartTime = eventTime
+ 
+         switch mode {
+         case .toggle, .hybrid:
+             if isHandsFreeRecording {
+                 isHandsFreeRecording = false
++                shortcutPressStartTime = nil
+                 guard canHandleShortcutAction() else { return }
+                 await toggleRecorderPanel(modeId)
+                 return
+@@ -439,6 +451,7 @@ final class RecordingShortcutModeHandler {
+         isShortcutPressed = false
+         activeRecordingShortcutAction = nil
+         activeShortcutCanCancelAccidentalStart = false
++        guard shortcutPressStartTime != nil else { return }
+ 
+         switch mode {
+         case .toggle:
+@@ -453,10 +466,20 @@ final class RecordingShortcutModeHandler {
+         case .hybrid:
+             let pressDuration = shortcutPressStartTime.map { eventTime - $0 } ?? 0
+             if pressDuration >= hybridPressThreshold && recordingState() == .recording {
++                pendingHybridTap?.cancel()
++                pendingHybridTap = nil
+                 guard canHandleShortcutAction() else { return }
+                 await toggleRecorderPanel(modeId)
+             } else {
+-                isHandsFreeRecording = true
++                pendingHybridTap?.cancel()
++                pendingHybridTap = Task { @MainActor [weak self] in
++                    guard let self else { return }
++                    try? await Task.sleep(for: .seconds(self.hybridDoubleTapInterval))
++                    guard !Task.isCancelled else { return }
++                    self.pendingHybridTap = nil
++                    guard self.isRecorderVisible(), self.canHandleShortcutAction() else { return }
++                    await self.toggleRecorderPanel(modeId)
++                }
+             }
+         }
+ 
+diff --git a/VoiceInk/Shortcuts/Shortcut.swift b/VoiceInk/Shortcuts/Shortcut.swift
+index 732c2e5..514c60f 100644
+--- a/VoiceInk/Shortcuts/Shortcut.swift
++++ b/VoiceInk/Shortcuts/Shortcut.swift
+@@ -164,6 +164,7 @@ struct Shortcut: Codable, Equatable {
+         UInt16(kVK_Command),
+         UInt16(kVK_RightCommand),
+         UInt16(kVK_Function),
++        179,  // Globe/Fn companion key-down emitted by current Apple keyboards.
+     ]
+ 
+     private static let functionKeyCodes: Set<UInt16> = [
+diff --git a/VoiceInk/Transcription/Engine/RecorderUIManager.swift b/VoiceInk/Transcription/Engine/RecorderUIManager.swift
+index 46ea76c..497fc99 100644
+--- a/VoiceInk/Transcription/Engine/RecorderUIManager.swift
++++ b/VoiceInk/Transcription/Engine/RecorderUIManager.swift
+@@ -270,6 +270,12 @@ class RecorderUIManager: ObservableObject, RecorderPanelPresenting {
+         await dismissRecorderPanel()
+     }
+ 
++    func discardRecording() async {
++        guard let engine = engine else { return }
++        await engine.discardRecording()
++        await dismissRecorderPanel()
++    }
++
+     // MARK: - Notification Handling
+ 
+     private func setupNotifications() {
+diff --git a/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift b/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
+index 8ffd8be..329b18f 100644
+--- a/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
++++ b/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
+@@ -272,6 +272,10 @@ class TranscriptionPipeline {
+             return
+         }
+ 
++        // Persist the completed text before attempting cursor delivery so Copy Last
++        // remains a recovery path even when accessibility/paste delivery fails.
++        saveTranscriptionAndPostCompletion()
++
+         await delivery.deliver(
+             TranscriptionDelivery.Request(
+                 transcription: transcription,
+@@ -289,8 +293,6 @@ class TranscriptionPipeline {
+                 failResponse: assistant.failResponse
+             )
+         )
+-
+-        saveTranscriptionAndPostCompletion()
+     }
+ 
+     private func metadata(for mode: ModeConfig?) -> (name: String?, emoji: String?) {
+diff --git a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
+index 1aab49f..d5705ce 100644
+--- a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
++++ b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
+@@ -86,6 +86,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+     private enum RecordingUseCase {
+         case newSession
+         case assistantFollowUp
++        case command
+ 
+         var isAssistantFollowUp: Bool {
+             self == .assistantFollowUp
+@@ -95,6 +96,8 @@ class VoiceInkEngine: NSObject, ObservableObject {
+     @Published var recordingState: RecordingState = .idle
+     @Published var shouldCancelRecording = false
+     @Published var partialTranscript: String = ""
++    @Published private(set) var isCommandMode = false
++    @Published private(set) var commandOutcome: SyllCommandOutcome?
+     var currentSession: TranscriptionSession?
+     private var currentSessionTranscriptionConfiguration: TranscriptionRuntimeConfiguration?
+     private var activeRecordingStartID: UUID?
+@@ -105,6 +108,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+     private var activeRecordingContextStore: RecordingContextSnapshotStore?
+     private var activeRecordingContextTasks: [Task<Void, Never>] = []
+     private var voiceInkRefinePreparationTask: Task<Void, Never>?
++    private var commandContext: SyllCommandContext?
++    private var commandOutcomeDismissal: Task<Void, Never>?
++    private let commandExecutor = SyllCommandExecutor()
+ 
+     let recorder = Recorder()
+     var recordedFile: URL? = nil
+@@ -186,6 +192,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         }
+ 
+         if recordingState == .recording {
++            let stoppedUseCase = activeRecordingUseCase
+             activePipelineUseCase = activeRecordingUseCase
+             activeRecordingUseCase = .newSession
+             activeRecordingStartID = nil
+@@ -194,7 +201,10 @@ class VoiceInkEngine: NSObject, ObservableObject {
+             await recorder.stopRecording()
+ 
+             if let recordedFile {
+-                if !shouldCancelRecording {
++                if !shouldCancelRecording, stoppedUseCase == .command {
++                    await runCommand(on: recordedFile)
++                    await cleanupResources()
++                } else if !shouldCancelRecording {
+                     let transcription = makeRecordingTranscription(
+                         for: recordedFile,
+                         text: "",
+@@ -227,6 +237,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+ 
+             activePipelineTranscriptionID = nil
+             shouldCancelRecording = false
++            commandOutcomeDismissal?.cancel()
++            commandOutcome = nil
++            isCommandMode = false
+             partialTranscript = ""
+             activeRecordingUseCase = recordingUseCase
+             clearActiveRecordingContext()
+@@ -235,6 +248,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+                 assistantSession.reset()
+             }
+ 
++            recordingState = .starting
+             requestRecordPermission { [self] granted in
+                 if granted {
+                     Task { @MainActor [self] in
+@@ -244,11 +258,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+ 
+                         let startID = UUID()
+                         self.activeRecordingStartID = startID
+-                        let activeModeTask = ActiveWindowService.shared.beginApplyingConfiguration(modeId: modeId) {
+-                            [weak self] in
+-                            guard let self else { return false }
+-                            return self.activeRecordingStartID == startID && !self.shouldCancelRecording
+-                        }
++                        let activeModeTask = Task<Void, Never> {}
+ 
+                         do {
+                             let fileName = "\(UUID().uuidString).wav"
+@@ -290,22 +300,18 @@ class VoiceInkEngine: NSObject, ObservableObject {
+                                 return
+                             }
+ 
+-                            self.startRecordingContextCapture()
++                            if self.activeRecordingUseCase != .command {
++                                self.startRecordingContextCapture()
++                            }
+ 
+-                            let modelResolution = ModeRuntimeResolver.transcriptionModelResolution(
+-                                transcriptionModelManager: self.transcriptionModelManager
++                            guard let transcriptionConfiguration = SyllPhase1Runtime.transcriptionConfiguration(
++                                manager: self.transcriptionModelManager
+                             )
+-                            guard
+-                                let transcriptionConfiguration = ModeRuntimeResolver.transcriptionConfiguration(
+-                                    from: modelResolution
+-                                )
+                             else {
+-                                let failure = self.recordingModelFailure(for: modelResolution)
+                                 NotificationManager.shared.showNotification(
+-                                    title: failure.title,
++                                    title: String(localized: "Local Parakeet V3 model is unavailable"),
+                                     type: .error,
+-                                    duration: 7.0,
+-                                    actionButton: (failure.actionLabel, failure.action)
++                                    duration: 7.0
+                                 )
+                                 await self.recorder.stopRecording()
+                                 try? FileManager.default.removeItem(at: permanentURL)
+@@ -357,13 +363,11 @@ class VoiceInkEngine: NSObject, ObservableObject {
+                                 _ = realtimeAudioGate.reset()
+                             }
+ 
+-                            self.scheduleVoiceInkRefinePreparation(for: startID)
+-
+                             Task { @MainActor [weak self] in
+                                 guard let self else { return }
+ 
+-                                let currentModel = ModeRuntimeResolver.transcriptionConfiguration(
+-                                    transcriptionModelManager: self.transcriptionModelManager
++                                let currentModel = SyllPhase1Runtime.transcriptionConfiguration(
++                                    manager: self.transcriptionModelManager
+                                 )?.model
+ 
+                                 if let model = currentModel,
+@@ -422,6 +426,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+                     }
+                 } else {
+                     logger.error("Recording permission denied")
++                    recordingState = .idle
+                 }
+             }
+         }
+@@ -431,56 +436,14 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         response(true)
+     }
+ 
+-    @MainActor
+-    private func recordingModelFailure(
+-        for resolution: ModeTranscriptionModelResolution
+-    ) -> (title: String, actionLabel: String, action: () -> Void) {
+-        switch resolution {
+-        case .noMode:
+-            return (
+-                String(localized: "No mode configured"),
+-                String(localized: "Manage Modes"),
+-                ModeSetupNavigator.openModesSettings
+-            )
+-        case .noSelection(let mode):
+-            return (
+-                String(
+-                    format: String(localized: "No transcription model is selected for the '%@' mode"),
+-                    mode.name
+-                ),
+-                String(localized: "Manage Modes"),
+-                ModeSetupNavigator.openModesSettings
+-            )
+-        case .modelNotFound(let mode):
+-            return (
+-                String(
+-                    format: String(localized: "The transcription model selected for the '%@' mode is unavailable"),
+-                    mode.name
+-                ),
+-                String(localized: "Manage Modes"),
+-                ModeSetupNavigator.openModesSettings
+-            )
+-        case .unavailable(let mode, let model), .available(let mode, let model):
+-            return (
+-                String(
+-                    format: String(localized: "'%@' is not available for the %@ mode"),
+-                    model.displayName,
+-                    mode.name
+-                ),
+-                String(localized: "Manage AI Models"),
+-                ModeSetupNavigator.openModelsSettings
+-            )
+-        }
+-    }
+-
+     /// Checks requirements that do not depend on asynchronous app and URL mode resolution.
+     @MainActor
+     private func passesRecordingPreflight() async -> Bool {
+-        if !ModeManager.shared.hasEnabledConfiguration {
++        if SyllPhase1Runtime.transcriptionConfiguration(manager: transcriptionModelManager) == nil {
+             await failRecordingPreflight(
+-                title: String(localized: "No mode configured"),
+-                actionLabel: String(localized: "Manage Modes"),
+-                action: ModeSetupNavigator.openModesSettings
++                title: String(localized: "Local Parakeet V3 model is unavailable"),
++                actionLabel: String(localized: "Dismiss"),
++                action: {}
+             )
+             return false
+         }
+@@ -530,7 +493,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+     ) async {
+         guard
+             let transcriptionConfiguration = currentSessionTranscriptionConfiguration
+-                ?? ModeRuntimeResolver.transcriptionConfiguration(transcriptionModelManager: transcriptionModelManager)
++                ?? SyllPhase1Runtime.transcriptionConfiguration(manager: transcriptionModelManager)
+         else {
+             transcription.text = String(localized: "Transcription Failed: No model selected")
+             transcription.transcriptionStatus = TranscriptionStatus.failed.rawValue
+@@ -549,31 +512,18 @@ class VoiceInkEngine: NSObject, ObservableObject {
+             audioURL: audioURL,
+             transcriptionConfiguration: transcriptionConfiguration,
+             formattingConfiguration: {
+-                ModeRuntimeResolver.transcriptionFormattingConfiguration()
++                SyllPhase1Runtime.formatting
+             },
+             session: session,
+-            triggerWordModeSelection: { [weak self] text in
+-                self?.selectTriggerWordModeIfNeeded(for: text)
+-            },
+-            enhancementConfiguration: { [weak self] in
+-                guard let self,
+-                    let enhancementService = self.enhancementService,
+-                    let aiService = enhancementService.getAIService()
+-                else {
+-                    return nil
+-                }
+-                return ModeRuntimeResolver.currentEnhancementConfiguration(
+-                    enhancementService: enhancementService,
+-                    aiService: aiService
+-                )
+-            },
++            triggerWordModeSelection: { _ in nil },
++            enhancementConfiguration: { nil },
+             recordingContextSnapshot: {
+                 await MainActor.run {
+                     contextStore?.snapshot
+                 }
+             },
+             outputConfiguration: {
+-                ModeRuntimeResolver.outputConfiguration()
++                SyllPhase1Runtime.output
+             },
+             onStateChange: { [weak self] state in
+                 guard let self, self.activePipelineTranscriptionID == transcriptionID else { return }
+@@ -651,6 +601,116 @@ class VoiceInkEngine: NSObject, ObservableObject {
+ 
+     // MARK: - Cancellation
+ 
++    func latchCommandMode() {
++        guard activeRecordingUseCase == .newSession,
++            recordingState == .starting || recordingState == .recording
++        else { return }
++
++        activeRecordingUseCase = .command
++        isCommandMode = true
++        commandContext = SyllCommandContext.capture()
++        clearActiveRecordingContext()
++    }
++
++    func discardRecording() async {
++        requestRecordingCancellation()
++        activeRecordingStartID = nil
++        clearActiveRecordingContext()
++        await recorder.stopRecording()
++        if let recordedFile {
++            try? FileManager.default.removeItem(at: recordedFile)
++        }
++        recordedFile = nil
++        partialTranscript = ""
++        shouldCancelRecording = false
++        recordingState = .idle
++        await cleanupResources()
++    }
++
++    private func runCommand(on audioURL: URL) async {
++        defer {
++            try? FileManager.default.removeItem(at: audioURL)
++            recordedFile = nil
++            currentSession = nil
++            currentSessionTranscriptionConfiguration = nil
++            shouldCancelRecording = false
++            activePipelineUseCase = .newSession
++            commandContext = nil
++            clearActiveRecordingContext()
++        }
++
++        guard let configuration = SyllPhase1Runtime.transcriptionConfiguration(manager: transcriptionModelManager) else {
++            showCommandOutcome(SyllCommandOutcome(
++                heard: "Unavailable",
++                interpreted: "Not interpreted",
++                result: "Local Parakeet V3 model is unavailable; nothing executed",
++                kind: .failure
++            ))
++            return
++        }
++
++        do {
++            let rawTranscript = try await serviceRegistry.transcribe(
++                audioURL: audioURL,
++                model: configuration.model,
++                context: configuration.requestContext
++            )
++            let heard = TranscriptionOutputFilter.filter(rawTranscript)
++                .trimmingCharacters(in: .whitespacesAndNewlines)
++            let interpretation = SyllCommandRegistry.interpret(heard)
++
++            switch interpretation {
++            case .unmatched:
++                showCommandOutcome(SyllCommandOutcome(
++                    heard: heard.isEmpty ? "Nothing" : heard,
++                    interpreted: interpretation.displayDescription,
++                    result: "Nothing executed",
++                    kind: .failure
++                ))
++            case .invalid(_, let reason):
++                showCommandOutcome(SyllCommandOutcome(
++                    heard: heard.isEmpty ? "Nothing" : heard,
++                    interpreted: interpretation.displayDescription,
++                    result: reason,
++                    kind: .failure
++                ))
++            case .command(let command):
++                recordingState = .busy
++                let execution = await commandExecutor.execute(
++                    command,
++                    context: commandContext ?? SyllCommandContext(applicationName: nil, repositoryRoot: nil)
++                )
++                showCommandOutcome(SyllCommandOutcome(
++                    heard: heard,
++                    interpreted: interpretation.displayDescription,
++                    result: execution.result,
++                    kind: execution.kind
++                ))
++            }
++        } catch {
++            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
++            showCommandOutcome(SyllCommandOutcome(
++                heard: "Unavailable",
++                interpreted: "Not interpreted",
++                result: "Transcription failed: \(message); nothing executed",
++                kind: .failure
++            ))
++        }
++    }
++
++    private func showCommandOutcome(_ outcome: SyllCommandOutcome) {
++        commandOutcome = outcome
++        isCommandMode = false
++        recordingState = .idle
++        commandOutcomeDismissal?.cancel()
++        commandOutcomeDismissal = Task { @MainActor [weak self] in
++            try? await Task.sleep(for: .seconds(3))
++            guard !Task.isCancelled, let self, self.commandOutcome == outcome else { return }
++            self.commandOutcome = nil
++            await self.recorderUIManager?.dismissRecorderPanel()
++        }
++    }
++
+     func cancelRecording() async {
+         let shouldFinishSessionImmediately: Bool
+         switch recordingState {
+@@ -686,6 +746,10 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         activeRecordingUseCase = .newSession
+         activePipelineUseCase = .newSession
+         clearActiveRecordingContext()
++        commandOutcomeDismissal?.cancel()
++        commandOutcome = nil
++        isCommandMode = false
++        commandContext = nil
+         await recorder.stopRecording()
+         recordedFile = nil
+         recordingState = .idle
+diff --git a/VoiceInk/VoiceInk.swift b/VoiceInk/VoiceInk.swift
+index 600b449..493938f 100644
+--- a/VoiceInk/VoiceInk.swift
++++ b/VoiceInk/VoiceInk.swift
+@@ -95,7 +95,6 @@ struct VoiceInkApp: App {
+         // Initialize services with proper sharing of instances
+         let aiService = AIService()
+         _aiService = StateObject(wrappedValue: aiService)
+-        aiService.refreshOllamaAvailabilityInBackground()
+ 
+         let updaterViewModel = UpdaterViewModel()
+         _updaterViewModel = StateObject(wrappedValue: updaterViewModel)
+@@ -230,17 +229,11 @@ struct VoiceInkApp: App {
+         )
+ 
+         let dictionarySchema = Schema([VocabularyWord.self, WordReplacement.self])
+-        #if LOCAL_BUILD
+-            let dictionaryCloudKit: ModelConfiguration.CloudKitDatabase = .none
+-        #else
+-            let dictionaryCloudKit: ModelConfiguration.CloudKitDatabase = .private(
+-                "iCloud.com.prakashjoshipax.VoiceInk")
+-        #endif
+         let dictionaryConfig = ModelConfiguration(
+             "dictionary",
+             schema: dictionarySchema,
+             url: dictionaryStoreURL,
+-            cloudKitDatabase: dictionaryCloudKit
++            cloudKitDatabase: .none
+         )
+ 
+         let statsSchema = Schema([SessionMetric.self])
+@@ -281,84 +274,11 @@ struct VoiceInkApp: App {
+ 
+     var body: some Scene {
+         Settings {
+-            Group {
+-                if hasCompletedOnboardingV2 {
+-                    SyllControlView()
+-                        .environmentObject(engine)
+-                        .environmentObject(whisperModelManager)
+-                        .environmentObject(fluidAudioModelManager)
+-                        .environmentObject(transcriptionModelManager)
+-                        .environmentObject(recorderUIManager)
+-                        .environmentObject(recordingShortcutManager)
+-                        .environmentObject(updaterViewModel)
+-                        .environmentObject(menuBarManager)
+-                        .environmentObject(mainWindowNavigation)
+-                        .environmentObject(aiService)
+-                        .environmentObject(enhancementService)
+-                        .modelContainer(container)
+-                        .onAppear {
+-                            if enableAnnouncements {
+-                                AnnouncementsService.shared.start()
+-                            }
+-
+-                            // Run due audio-only cleanup and schedule future checks when transcript cleanup is not managing retention.
+-                            if !UserDefaults.standard.bool(forKey: CleanupSettingsKeys.isTranscriptionCleanupEnabled)
+-                                && UserDefaults.standard.bool(forKey: CleanupSettingsKeys.isAudioCleanupEnabled)
+-                            {
+-                                Task {
+-                                    await audioCleanupManager.runAutomaticCleanupIfNeeded(
+-                                        modelContext: container.mainContext)
+-                                }
+-                                audioCleanupManager.startAutomaticCleanup(modelContext: container.mainContext)
+-                            }
+-
+-                            // Process any pending open-file request now that the main ContentView is ready.
+-                            if let pendingURL = appDelegate.pendingOpenFileURL {
+-                                NotificationCenter.default.post(
+-                                    name: .navigateToDestination, object: nil,
+-                                    userInfo: ["destination": "Transcribe Audio"])
+-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+-                                    NotificationCenter.default.post(
+-                                        name: .openFileForTranscription, object: nil, userInfo: ["url": pendingURL])
+-                                }
+-                                appDelegate.pendingOpenFileURL = nil
+-                            }
+-                        }
+-                        .background(
+-                            WindowAccessor { window in
+-                                WindowManager.shared.configureWindow(window)
+-                            }
+-                        )
+-                        .onDisappear {
+-                            AnnouncementsService.shared.stop()
+-                            whisperModelManager.unloadModel()
+-
+-                            // Stop the automatic audio cleanup process
+-                            audioCleanupManager.stopAutomaticCleanup()
+-                        }
+-                } else {
+-                    SyllControlView()
+-                        .environmentObject(fluidAudioModelManager)
+-                        .environmentObject(transcriptionModelManager)
+-                        .environmentObject(aiService)
+-                        .environmentObject(enhancementService)
+-                        .frame(width: AppWindowLayout.width)
+-                        .frame(minHeight: AppWindowLayout.minimumHeight)
+-                        .background(
+-                            WindowAccessor { window in
+-                                WindowManager.shared.configureWindow(window)
+-                            })
+-                }
+-            }
+-            .confettiCelebrationPresenter()
+-            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+-                licenseViewModel.refreshLicenseState()
+-            }
+-            .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in
+-                licenseViewModel.refreshLicenseState()
+-            }
++            DictionarySettingsView()
++                .modelContainer(container)
++                .frame(width: 620, height: 520)
+         }
+-        .defaultSize(width: 720, height: 560)
++        .defaultSize(width: 620, height: 520)
+         .commands {
+             CommandGroup(replacing: .newItem) {}
+ 
+@@ -385,13 +305,6 @@ struct VoiceInkApp: App {
+         }
+         .menuBarExtraStyle(.menu)
+ 
+-        #if DEBUG
+-            WindowGroup("Debug") {
+-                Button("Toggle Menu Bar Only") {
+-                    menuBarManager.isMenuBarOnly.toggle()
+-                }
+-            }
+-        #endif
+     }
+ 
+     /// Only one notification fits on screen, so show at most one launch reminder.
+@@ -400,6 +313,8 @@ struct VoiceInkApp: App {
+         didShowLaunchReminders = true
+ 
+         if !AXIsProcessTrusted() {
++            let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
++            _ = AXIsProcessTrustedWithOptions([promptKey: true] as CFDictionary)
+             NotificationManager.shared.showNotification(
+                 title: String(localized: "Accessibility permission is not provided"),
+                 type: .warning,
+@@ -409,14 +324,6 @@ struct VoiceInkApp: App {
+             return
+         }
+ 
+-        if !ModeManager.shared.hasEnabledConfiguration {
+-            NotificationManager.shared.showNotification(
+-                title: String(localized: "No mode configured"),
+-                type: .warning,
+-                duration: 7.0,
+-                actionButton: (String(localized: "Manage Modes"), ModeSetupNavigator.openModesSettings)
+-            )
+-        }
+     }
+ 
+     private static func openAccessibilitySettings() {
+@@ -448,6 +355,6 @@ private struct SyllMenuBarMark: View {
+         Image(nsImage: Self.statusImage)
+             .renderingMode(.template)
+             .frame(width: 18, height: 18)
+-        .accessibilityLabel("Syll")
++            .accessibilityLabel("Syll")
+     }
+ }

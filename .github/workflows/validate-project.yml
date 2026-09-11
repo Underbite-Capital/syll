@@ -33,6 +33,30 @@ jobs:
             scripts/SyllRecorderHUDPresentationPolicyTests.swift \
             -o /tmp/syll-recorder-hud-policy-tests
           /tmp/syll-recorder-hud-policy-tests
+      - name: Run command registry tests
+        run: |
+          swiftc \
+            overlays/core/VoiceInk/Commands/SyllCommand.swift \
+            overlays/core/VoiceInk/Commands/SyllCommandRegistry.swift \
+            scripts/SyllCommandRegistryTests.swift \
+            -o /tmp/syll-command-registry-tests
+          /tmp/syll-command-registry-tests
+      - name: Run bounded command executor tests
+        run: |
+          swiftc \
+            overlays/core/VoiceInk/Commands/SyllCommand.swift \
+            overlays/core/VoiceInk/Commands/SyllCommandContext.swift \
+            overlays/core/VoiceInk/Commands/SyllCommandExecutor.swift \
+            scripts/SyllCommandExecutorTests.swift \
+            -o /tmp/syll-command-executor-tests
+          /tmp/syll-command-executor-tests
+      - name: Run repository context tests
+        run: |
+          swiftc \
+            overlays/core/VoiceInk/Commands/SyllCommandContext.swift \
+            scripts/SyllCommandContextTests.swift \
+            -o /tmp/syll-command-context-tests
+          /tmp/syll-command-context-tests
 
   apply-overlay:
     runs-on: ubuntu-latest

@@ -34,10 +34,14 @@ def require_text(path: str, *needles: str) -> str:
     return text
 
 
-def validate_patch_syntax(path: str) -> None:
+def validate_patch_syntax(path: str, *, recount: bool = False) -> None:
     patch = require(path)
+    command = ["git", "apply"]
+    if recount:
+        command.append("--recount")
+    command.extend(["--numstat", str(patch)])
     result = subprocess.run(
-        ["git", "apply", "--numstat", str(patch)],
+        command,
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -59,6 +63,9 @@ def main() -> int:
 
     validate_patch_syntax("patches/core.patch")
     validate_patch_syntax("patches/syll-branding.patch")
+    validate_patch_syntax("patches/syll-recovery.patch", recount=True)
+    validate_patch_syntax("patches/syll-shell-structural.patch", recount=True)
+    validate_patch_syntax("patches/syll-command-mode.patch")
     if not args.core_only:
         validate_patch_syntax("patches/boosting.patch")
 
@@ -68,6 +75,7 @@ def main() -> int:
         "--core-only",
         "git -C \"$APP_DIR\" apply --check",
         "patches/syll-branding.patch",
+        "patches/syll-command-mode.patch",
     )
     if "MODE=\"full\"" not in prepare:
         raise AssertionError("full overlay must remain the explicit default")
@@ -119,6 +127,51 @@ def main() -> int:
         'window.title = "Syll"',
         "Restart Syll",
     )
+    require_text(
+        "patches/syll-recovery.patch",
+        "private static let statusImage: NSImage",
+        "flipped: false",
+        "image.isTemplate = true",
+        "Image(nsImage: Self.statusImage)",
+    )
+    require_text(
+        "overlays/core/VoiceInk/Commands/SyllCommandRegistry.swift",
+        'normalized == "git status"',
+        'normalized == "copy branch"',
+        'normalized == "open iqs staging"',
+        '(["kill port "]',
+    )
+    command_executor = require_text(
+        "overlays/core/VoiceInk/Commands/SyllCommandExecutor.swift",
+        'executable: URL(fileURLWithPath: "/usr/sbin/lsof")',
+        'executable: URL(fileURLWithPath: "/usr/bin/git")',
+        "Darwin.kill(listener.pid, SIGTERM)",
+    )
+    if any(shell in command_executor for shell in ('"/bin/zsh"', '"/bin/sh"', '"/bin/bash"')):
+        raise AssertionError("command executor must not route transcripts through a shell")
+    command_context = require_text(
+        "overlays/core/VoiceInk/Commands/SyllCommandContext.swift",
+        "kAXDocumentAttribute",
+        "documentURL.isFileURL",
+        "nearestRepositoryRoot",
+    )
+    if "/Users/" in command_context:
+        raise AssertionError("repository resolution must not contain a user-specific workspace path")
+    command_patch = require_text(
+        "patches/syll-command-mode.patch",
+        "if mode == .hybrid, pendingHybridTap != nil",
+        "if action == .primaryRecording",
+        "latchCommandMode()",
+        "hybridDoubleTapInterval: TimeInterval = 0.5",
+        "179,  // Globe/Fn companion key-down emitted by current Apple keyboards.",
+        "stoppedUseCase == .command",
+        "await runCommand(on: recordedFile)",
+        "saveTranscriptionAndPostCompletion()",
+        "pasteResult.didPostPasteCommand",
+        "SyllPhase1Runtime.transcriptionConfiguration",
+    )
+    if "SyllFnGestureStateMachine" in command_patch:
+        raise AssertionError("command mode must extend the accepted hybrid Fn handler, not replace it")
 
     dictionary = require_text("dictionary.yaml", "version: 1", "canonical:")
     term_count = len(re.findall(r"^\s*- canonical:", dictionary, flags=re.MULTILINE))
@@ -134,6 +187,9 @@ def main() -> int:
     project = json.loads(require(".underbite/project.json").read_text(encoding="utf-8"))
     if project.get("phase") != "implementation-candidate":
         raise AssertionError("project phase must be implementation-candidate")
+    implementation = project.get("implementation", {})
+    if implementation.get("command_mode_state") != "open-not-accepted-not-verified":
+        raise AssertionError("Command Mode must remain explicitly open and unaccepted until human QA passes")
 
     boosting_dir = ROOT / "overlays/boosting"
     boosting_patch = ROOT / "patches/boosting.patch"

@@ -5,8 +5,8 @@
   "project_slug": "david-voice-local-dictation",
   "phase": "implementation-candidate",
   "created_on": "2026-08-20",
-  "updated_on": "2026-09-08",
-  "outcome": "Keep Syll small and simple while materially improving terminology control, deterministic non-LLM cleanup, recognition quality where supported, and the compact recording experience.",
+  "updated_on": "2026-09-11",
+  "outcome": "Keep Syll small and local while preserving accepted hold-to-dictate behavior and adding a deterministic, bounded Fn-latched Command Mode for outcome-oriented computer operations.",
   "owners": {
     "commercial": "David",
     "technical": "David",
@@ -16,7 +16,9 @@
     "branch": "feature/syll-dictation-quality-control",
     "voiceink_upstream_commit": "3c211dab63454f18cf3f8b58750ec6bf3f5b4d17",
     "core_fallback": "./scripts/prepare-app.sh --core-only --reset",
-    "human_acceptance_required": true
+    "human_acceptance_required": true,
+    "command_mode_state": "open-not-accepted-not-verified",
+    "latest_human_qa": "failed: command reached HUD but mixed digit-and-scale port speech was interpreted as an invalid port"
   },
   "research": {
     "commercial_diligence": "complete-light",
