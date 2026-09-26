@@ -6,46 +6,53 @@ struct SyllWaveformPill: View {
 
     private let orange = Color(red: 1.0, green: 0.54, blue: 0.0)
     private let barCount = 8
+    private static let barHeights: [CGFloat] = [3.5, 5, 8, 10.5, 12, 9, 6, 4.5]
+    private static let barThresholds: [Double] = [0.05, 0.13, 0.22, 0.32, 0.43, 0.55, 0.68, 0.81]
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 0.05)) { timeline in
-            let meter = audioMeterProvider()
-            HStack(spacing: 7) {
+        TimelineView(.animation(minimumInterval: 0.05)) { _ in
+            let level = Self.meterLevel(audioMeterProvider())
+            HStack(spacing: 6) {
                 Circle()
-                    .fill(orange)
-                    .frame(width: 8, height: 8)
-                    .shadow(color: orange.opacity(0.6), radius: 4)
+                    .fill(orange.opacity(0.92))
+                    .frame(width: 5.5, height: 5.5)
+                    .shadow(color: orange.opacity(0.25), radius: 2)
 
-                HStack(alignment: .center, spacing: 2) {
+                HStack(alignment: .center, spacing: 1.4) {
                     ForEach(0..<barCount, id: \.self) { index in
-                        Capsule()
-                            .fill(index > 5 ? Color.white.opacity(0.25) : orange)
-                            .frame(width: 2, height: Self.barHeight(
-                                index: index, average: meter.averagePower,
-                                peak: meter.peakPower, time: timeline.date.timeIntervalSinceReferenceDate
-                            ))
+                        let activity = Self.barActivity(index: index, level: level)
+                        ZStack {
+                            Capsule()
+                                .fill(.white.opacity(0.30))
+                                .frame(width: 1.6, height: Self.barHeights[index])
+                            Capsule()
+                                .fill(orange)
+                                .frame(width: 1.6, height: Self.barHeights[index] * CGFloat(activity))
+                                .opacity(activity)
+                        }
+                        .frame(width: 1.6, height: 12)
                     }
                 }
-                .frame(height: 16)
+                .animation(.easeOut(duration: 0.12), value: level)
             }
-            .padding(.horizontal, 9.5)
-            .frame(width: 64, height: 22)
+            .padding(.horizontal, 11)
+            .frame(width: 56, height: 19)
             .background {
                 Capsule()
                     .fill(.ultraThinMaterial)
-                    .overlay { Capsule().fill(Color(red: 0.08, green: 0.08, blue: 0.08).opacity(0.8)) }
-                    .overlay { Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 0.5) }
+                    .overlay { Capsule().fill(Color(red: 0.09, green: 0.10, blue: 0.12).opacity(0.68)) }
             }
             .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.22), radius: 5, y: 2)
+            .shadow(color: .black.opacity(0.14), radius: 3, y: 1)
             .accessibilityLabel("Recording")
         }
     }
 
-    static func barHeight(index: Int, average: Double, peak: Double, time: TimeInterval) -> CGFloat {
-        let level = max(0, min(1, average * 0.7 + peak * 0.3))
-        let centre = 1 - abs(Double(index) - 3.5) / 5
-        let pulse = 0.7 + 0.3 * sin(time * 11 + Double(index) * 0.75)
-        return CGFloat(2 + level * centre * pulse * 15)
+    static func meterLevel(_ meter: AudioMeter) -> Double {
+        max(0, min(1, meter.averagePower * 0.7 + meter.peakPower * 0.3))
+    }
+
+    static func barActivity(index: Int, level: Double) -> Double {
+        max(0, min(1, (level - barThresholds[index]) / 0.16))
     }
 }
