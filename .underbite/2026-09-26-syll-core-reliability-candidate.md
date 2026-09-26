@@ -45,7 +45,8 @@ future review but were not run, because they would launch a test host.
 The isolated `scripts/build-local-app.sh --core-only` build resolved the exact
 FluidAudio revision, then stopped in MLX's `steel_attention.metal` before
 compiling changed Syll sources: Xcode 27.0 reported a missing Metal Toolchain.
-No application bundle was produced or launched. This host toolchain issue is
+Xcode left a partial `VoiceInk.app` directory without an executable; no usable
+app was produced or launched. This host toolchain issue is
 not evidence of a Syll source compile failure or a successful candidate build.
 
 ## Future correction-learning seam
