@@ -38,6 +38,8 @@ David selected **APP-5**: orange rising bars and vertical stroke on a navy round
 
 Authoritative recovery source: `build/recovery-archives/Syll-build221.app.zip`, bundle `Syll.app/Contents/Resources/AppIcon.icns`, macOS-rendered PNG SHA-256 `590b1986b8b1c5e4d07c926acd50cb8bdf50f0e94737253e6c47005f28a0de23`.
 
+The exact raw ICNS is also retained in Git at `reference/Syll-build221-AppIcon.icns` (SHA-256 `a3cc8688e8ab6482fbd65458537703dc32d2f2d4e8f3c411c394f4012bc4b88f`), with extraction provenance beside it. This is historical source evidence, not an instruction to change the currently acceptable menu-bar icon.
+
 The menu-bar mark is the same rising-bars-and-vertical-stroke identity rendered as a monochrome macOS template. It must never use a microphone, pen nib, four bars, `text.cursor`, or a text label.
 
 Future builds must reproduce these inputs; a different visible icon is a release-blocking regression.

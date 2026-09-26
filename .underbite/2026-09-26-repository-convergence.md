@@ -55,3 +55,6 @@ ticket graph archived under `research/history/2026-08-21-prd-handoff/`.
 That graph is not current delivery authority. Command Mode remains
 unaccepted, correction learning remains deferred, short-utterance evidence
 is still limited, and the future double-tap action remains undecided.
+The historical coloured Syll mark's raw build-221 ICNS is retained under
+`reference/` with its digest and provenance. It is not a current menu-bar
+change or a release requirement.
