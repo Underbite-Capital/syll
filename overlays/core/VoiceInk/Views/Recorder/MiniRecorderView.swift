@@ -110,7 +110,10 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
                 legacyContent
             }
         }
-        .animation(.easeOut(duration: 0.15), value: stateProvider.recordingState == .recording)
+        .animation(
+            .easeOut(duration: stateProvider.recordingState == .recording ? 0.15 : 0.25),
+            value: stateProvider.recordingState == .recording
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
