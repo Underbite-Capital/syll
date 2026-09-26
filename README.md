@@ -70,6 +70,7 @@ The script refuses to overwrite dirty work unless `--reset` is explicit. Do not 
 - Importable starting configuration: `prototype/VoiceInk_David_Settings.json`
 - Detailed handoff: `docs/IMPLEMENTATION-HANDOFF.md`
 - Acceptance checklist: `docs/MANUAL-QA.md`
+- Local recognition research and bounded evaluator: `.underbite/2026-09-26-local-recognition-study.md` and `tools/recognition-eval/` (no product-path change or acceptance)
 
 Do not make ad hoc edits under `app/` and then forget them. Port accepted fixes back into an overlay or patch so a clean checkout can reproduce the build.
 

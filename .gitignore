@@ -6,6 +6,8 @@
 node_modules/
 dist/
 build/
+tools/recognition-eval/.build/
+tools/recognition-eval/.swiftpm/
 coverage/
 *.log
 __pycache__/
