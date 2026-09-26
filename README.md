@@ -4,26 +4,30 @@ A small, menu-bar-first macOS dictation app built on VoiceInk's mature recorder 
 
 ## Current status
 
-The active implementation lives on `feature/syll-dictation-quality-control`. Command Mode is **OPEN / NOT ACCEPTED / NOT VERIFIED**: the implementation exists and passes its recorded mechanical checks, but the current candidate failed human QA. Double-tap reached the command HUD, yet “What’s on port 3 thousand?” was interpreted as an invalid port and did not execute the intended command. Mechanical test or build success must not be treated as evidence that Command Mode works. See `.underbite/2026-09-11-syll-command-mode-candidate.md` before resuming.
+`main` is the authoritative source branch. The core-reliability composition has passed a local build and mechanical checks, but it has not been installed or accepted by human QA. The installed Syll app remains separate from this source result. The ordinary Fn hold-to-dictate path has prior human evidence; the current source still needs a later bounded experience check before release.
+
+Command Mode is **OPEN / NOT ACCEPTED / NOT VERIFIED**. The historical build-239 candidate failed human QA: double-tap reached the command HUD, but “What’s on port 3 thousand?” was interpreted as an invalid port. Its code remains in the composition without product acceptance. The future double-tap action is undecided. See `.underbite/2026-09-11-syll-command-mode-candidate.md`.
 
 ## Scope
 
 ```text
-existing VoiceInk capture and transcription
-  -> AssemblyAI recognition context when selected
-  -> one-pass deterministic alias correction
-  -> optional guarded cleanup
-  -> existing VoiceInk delivery
+existing VoiceInk capture
+  -> local Parakeet V3 recognition
+  -> conservative deterministic cleanup
+  -> one-pass user-authoritative dictionary correction
+  -> persist completed transcription before delivery
+  -> existing VoiceInk cursor/clipboard delivery
 ```
 
 Included:
 
 - one Personal Dictionary surface with preferred spellings and aliases;
 - non-cascading Unicode-aware deterministic correction;
-- exact dictionary spellings supplied to cleanup;
+- exact preferred dictionary spellings retained after cleanup;
 - five-second, one-attempt cleanup for cleanup-named prompts;
 - deterministic validation and fallback to corrected transcription;
-- AssemblyAI recognition context and FluidAudio remaining disabled in the core path;
+- local Parakeet V3 in the core path, without recognition-time vocabulary bias;
+- Copy Last Transcription from the latest completed audio-backed dictation;
 - focused tests, reproducible preparation, and cleanup documentation.
 
 Excluded:
@@ -38,15 +42,15 @@ Excluded:
 ## Prepare the app
 
 ```bash
-git checkout feature/syll-dictation-quality-control
+git checkout main
 python3 scripts/verify_overlay.py --core-only
-./scripts/prepare-app.sh --core-only --reset
+./scripts/prepare-app.sh --core-only
 ./scripts/build-local-app.sh --core-only
 ```
 
-The commands above are the safer dictionary + cleanup path. The build is ad-hoc signed with reduced local entitlements and is not installed or launched automatically.
+Run preparation in a fresh clone or disposable checkout with a clean pinned `app/` submodule. The core build is ad-hoc signed with reduced local entitlements and is not installed or launched automatically. The currently installed `/Applications/Syll.app` is not replaced by these commands.
 
-Only after core human acceptance, prepare the experimental native-boosting path with:
+The historical experimental native-boosting path remains available for research, but is not the current core composition:
 
 ```bash
 python3 scripts/verify_overlay.py
@@ -54,7 +58,7 @@ python3 scripts/verify_overlay.py
 ./scripts/build-local-app.sh --full
 ```
 
-The script refuses to overwrite dirty work unless `--reset` is explicit.
+The script refuses to overwrite dirty work unless `--reset` is explicit. Do not use `--reset` on a checkout with unclassified work.
 
 ## Source of truth
 
@@ -71,7 +75,7 @@ Do not make ad hoc edits under `app/` and then forget them. Port accepted fixes 
 
 ## Why this repository is still a submodule overlay
 
-The old spike already used VoiceInk as a submodule. Rather than pretending that wrapper was a fork, this branch makes the arrangement explicit and reproducible. It preserves a small downstream delta and an immediate `--core-only` escape hatch. A future maintainer can convert it to a conventional fork after the product proves useful; doing that before the human trial adds repository work without improving dictation.
+The old spike already used VoiceInk as a submodule. `main` keeps that arrangement explicit and reproducible: the pinned upstream submodule stays clean, while maintained changes live in root overlays and patches. A prepared `app/` is a disposable generated composition.
 
 ## Historical evidence
 

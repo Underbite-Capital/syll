@@ -1,5 +1,7 @@
 # Syll follow-up release plan
 
+Historical status update (2026-09-26): this records David's 2026-09-09 feedback and is not the current release plan. The current menu-bar icon is acceptable. The exact coloured treatment below is optional future polish only if its authoritative asset and a low-risk route from the working build are established. Do not treat the old coloured-icon requirement or release sequence as current authority.
+
 Status: frozen from David’s direct feedback on 2026-09-09. No implementation, installation, launch, preference mutation, or further visual substitution is authorised by this record.
 
 ## Current accepted baseline

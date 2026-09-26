@@ -1,5 +1,7 @@
 # Syll icon history register
 
+Current interpretation (2026-09-26): the selected application-icon history remains authoritative provenance. The current menu-bar icon is acceptable; a coloured menu-bar treatment is deferred optional polish, not a release gate. The older build-233 status and selection language below describe the decision at that time.
+
 Status: selection locked and installed as build 233. Any deviation from the approved identity below is a release-blocking regression.
 
 ## Application-icon candidates

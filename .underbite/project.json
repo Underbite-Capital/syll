@@ -5,17 +5,17 @@
   "project_slug": "david-voice-local-dictation",
   "phase": "implementation-candidate",
   "created_on": "2026-08-20",
-  "updated_on": "2026-09-11",
-  "outcome": "Keep Syll small and local while preserving accepted hold-to-dictate behavior and adding a deterministic, bounded Fn-latched Command Mode for outcome-oriented computer operations.",
+  "updated_on": "2026-09-26",
+  "outcome": "Keep Syll small and local while preserving the ordinary hold-to-dictate path, dependable last-transcription recovery, and user-authoritative dictionary spelling. Command Mode and the future double-tap action remain unaccepted decisions.",
   "owners": {
     "commercial": "David",
     "technical": "David",
     "project_manager": "David"
   },
   "implementation": {
-    "branch": "feature/syll-dictation-quality-control",
+    "branch": "main",
     "voiceink_upstream_commit": "3c211dab63454f18cf3f8b58750ec6bf3f5b4d17",
-    "core_fallback": "./scripts/prepare-app.sh --core-only --reset",
+    "core_fallback": "./scripts/prepare-app.sh --core-only",
     "human_acceptance_required": true,
     "command_mode_state": "open-not-accepted-not-verified",
     "latest_human_qa": "failed: command reached HUD but mixed digit-and-scale port speech was interpreted as an invalid port"
