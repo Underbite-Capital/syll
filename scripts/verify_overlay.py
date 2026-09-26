@@ -56,6 +56,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--core-only",
+        'cat-file -e "$UPSTREAM_COMMIT^{commit}"',
         action="store_true",
         help="Validate only the independently usable core overlay and patch.",
     )

@@ -98,7 +98,9 @@ restore_on_error() {
 trap restore_on_error ERR INT TERM
 
 MUTATED=1
-git -C "$APP_DIR" fetch origin "$UPSTREAM_COMMIT"
+if ! git -C "$APP_DIR" cat-file -e "$UPSTREAM_COMMIT^{commit}"; then
+  git -C "$APP_DIR" fetch origin "$UPSTREAM_COMMIT"
+fi
 git -C "$APP_DIR" checkout --detach "$UPSTREAM_COMMIT"
 
 if [[ "$MODE" == "full" ]]; then
