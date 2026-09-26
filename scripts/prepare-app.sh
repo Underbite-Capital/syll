@@ -123,6 +123,8 @@ git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-command-mode.patch"
 git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-command-mode.patch"
 git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-core-reliability.patch"
 git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-core-reliability.patch"
+git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-local-diagnostics.patch"
+git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-local-diagnostics.patch"
 
 if [[ "$MODE" == "full" ]]; then
   cp -R "$ROOT_DIR/overlays/boosting/." "$APP_DIR/"

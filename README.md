@@ -6,6 +6,8 @@ A small, menu-bar-first macOS dictation app built on VoiceInk's mature recorder 
 
 `main` is the authoritative source branch. The core-reliability composition has passed a local build and mechanical checks, but it has not been installed or accepted by human QA. The installed Syll app remains separate from this source result. The ordinary Fn hold-to-dictate path has prior human evidence; the current source still needs a later bounded experience check before release.
 
+The local diagnostic candidate investigates David's separate report that short recordings can miss their first words. It adds bounded local capture evidence, a smaller everyday menu, and `Reset Clipboard`; it does not change the shipping recognizer or claim to have fixed first-word loss. See `.underbite/2026-09-26-recording-start-and-operational-diagnostics.md` for the source trace, retention limits, and unresolved live evidence gate.
+
 Command Mode is **OPEN / NOT ACCEPTED / NOT VERIFIED**. The historical build-239 candidate failed human QA: double-tap reached the command HUD, but “What’s on port 3 thousand?” was interpreted as an invalid port. Its code remains in the composition without product acceptance. The future double-tap action is undecided. See `.underbite/2026-09-11-syll-command-mode-candidate.md`.
 
 ## Scope
@@ -71,6 +73,7 @@ The script refuses to overwrite dirty work unless `--reset` is explicit. Do not 
 - Detailed handoff: `docs/IMPLEMENTATION-HANDOFF.md`
 - Acceptance checklist: `docs/MANUAL-QA.md`
 - Local recognition research and bounded evaluator: `.underbite/2026-09-26-local-recognition-study.md` and `tools/recognition-eval/` (no product-path change or acceptance)
+- Local recording-start investigation and bounded operational evidence: `.underbite/2026-09-26-recording-start-and-operational-diagnostics.md` (candidate only)
 
 Do not make ad hoc edits under `app/` and then forget them. Port accepted fixes back into an overlay or patch so a clean checkout can reproduce the build.
 

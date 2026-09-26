@@ -1,0 +1,262 @@
+diff --git a/VoiceInk/CoreAudioRecorder.swift b/VoiceInk/CoreAudioRecorder.swift
+--- a/VoiceInk/CoreAudioRecorder.swift
++++ b/VoiceInk/CoreAudioRecorder.swift
+@@ -106,4 +106,15 @@
+     private let droppedInputBuffersBackpressure = ManagedAtomic<UInt64>(0)
+     private let droppedInputBuffersCapacity = ManagedAtomic<UInt64>(0)
++    private let firstAcceptedBufferNanos = ManagedAtomic<UInt64>(0)
++    private let firstNonSilentBufferNanos = ManagedAtomic<UInt64>(0)
++    private let writtenFrames = ManagedAtomic<UInt64>(0)
++    private(set) var completedCaptureSnapshot: CaptureSnapshot?
++
++    struct CaptureSnapshot {
++        let firstAcceptedBufferNanos: UInt64
++        let firstNonSilentBufferNanos: UInt64
++        let writtenFrames: UInt64
++        let droppedBuffers: UInt64
++    }
+ 
+     /// Called from the recorder processing queue with raw PCM data (16-bit, 16kHz, mono) for streaming.
+@@ -218,4 +229,11 @@
+ 
+         drainAudioProcessingQueue()
++        completedCaptureSnapshot = CaptureSnapshot(
++            firstAcceptedBufferNanos: firstAcceptedBufferNanos.load(ordering: .acquiring),
++            firstNonSilentBufferNanos: firstNonSilentBufferNanos.load(ordering: .acquiring),
++            writtenFrames: writtenFrames.load(ordering: .acquiring),
++            droppedBuffers: droppedInputBuffersBackpressure.load(ordering: .acquiring)
++                + droppedInputBuffersCapacity.load(ordering: .acquiring)
++        )
+         logDroppedInputBufferCounters(context: "stop")
+ 
+@@ -905,4 +923,9 @@
+ 
+         inputWriteIndex.store(writeIndex + 1, ordering: .releasing)
++        let now = DispatchTime.now().uptimeNanoseconds
++        _ = firstAcceptedBufferNanos.compareExchange(expected: 0, desired: now, ordering: .acquiringAndReleasing)
++        if peakPower > -45 {
++            _ = firstNonSilentBufferNanos.compareExchange(expected: 0, desired: now, ordering: .acquiringAndReleasing)
++        }
+         scheduleAudioProcessing()
+     }
+@@ -981,4 +1004,8 @@
+ 
+     private func resetAudioProcessingState() {
++        completedCaptureSnapshot = nil
++        firstAcceptedBufferNanos.store(0, ordering: .releasing)
++        firstNonSilentBufferNanos.store(0, ordering: .releasing)
++        writtenFrames.store(0, ordering: .releasing)
+         inputWriteIndex.store(0, ordering: .relaxed)
+         inputReadIndex.store(0, ordering: .relaxed)
+@@ -1060,4 +1087,6 @@
+         if writeStatus != noErr {
+             logger.error("🎙️ ExtAudioFileWrite failed with status: \(writeStatus, privacy: .public)")
++        } else {
++            writtenFrames.wrappingIncrement(by: UInt64(outputFrameCount), ordering: .relaxed)
+         }
+ 
+diff --git a/VoiceInk/Paste/CursorPaster.swift b/VoiceInk/Paste/CursorPaster.swift
+--- a/VoiceInk/Paste/CursorPaster.swift
++++ b/VoiceInk/Paste/CursorPaster.swift
+@@ -21,4 +21,33 @@
+     private static let pasteShortcutEventDelay: TimeInterval = 0.01
+     private static let minimumClipboardRestoreDelay: TimeInterval = 0.25
++    @MainActor private static var recovery: (snapshot: ClipboardSnapshot, text: String, sessionID: String)?
++
++    enum ClipboardResetResult {
++        case restoredPrevious
++        case clipboardChangedElsewhere
++        case noSyllPaste
++    }
++
++    /// Restore only if Syll's own paste payload still occupies the clipboard.
++    /// Never overwrite a clipboard value another app or the user has since placed there.
++    @MainActor
++    static func resetClipboard() -> ClipboardResetResult {
++        guard let pending = recovery else { return .noSyllPaste }
++        let pasteboard = NSPasteboard.general
++        guard SyllClipboardResetPolicy.canRestore(
++            currentSessionID: pasteboard.string(forType: ClipboardManager.pasteSessionType),
++            currentText: pasteboard.string(forType: .string),
++            expectedSessionID: pending.sessionID, expectedText: pending.text
++        ) else {
++            recovery = nil
++            return .clipboardChangedElsewhere
++        }
++        pasteboard.clearContents()
++        if !pending.snapshot.isEmpty {
++            pasteboard.writeObjects(pasteboardItems(from: pending.snapshot))
++        }
++        recovery = nil
++        return .restoredPrevious
++    }
+ 
+     static func pasteAtCursor(_ text: String) {
+@@ -48,6 +77,8 @@
+         let pasteboard = NSPasteboard.general
+         let shouldRestoreClipboard = UserDefaults.standard.bool(forKey: "restoreClipboardAfterPaste")
+-        let savedContents = shouldRestoreClipboard ? snapshotClipboard(from: pasteboard) : []
++        let savedContents = snapshotClipboard(from: pasteboard)
+         let sessionID = UUID().uuidString
++
++        recovery = (savedContents, text, sessionID)
+ 
+         guard
+@@ -55,9 +86,20 @@
+                 text,
+                 transient: shouldRestoreClipboard,
+-                sessionID: shouldRestoreClipboard ? sessionID : nil
++                sessionID: sessionID
+             )
+         else {
+             logger.error("Failed to prepare clipboard for paste")
++            pasteboard.clearContents()
++            if !savedContents.isEmpty {
++                pasteboard.writeObjects(pasteboardItems(from: savedContents))
++            }
++            recovery = nil
+             return .commandNotPosted
++        }
++
++        // A skipped automatic restore must not keep the prior clipboard snapshot indefinitely.
++        Task { @MainActor in
++            await wait(300)
++            if recovery?.sessionID == sessionID { recovery = nil }
+         }
+ 
+@@ -114,4 +156,5 @@
+         Task { @MainActor in
+             await wait(delay)
++            guard recovery?.sessionID == sessionID else { return }
+             guard shouldRestoreOriginalClipboard(
+                 on: pasteboard,
+@@ -125,4 +168,5 @@
+                 pasteboard.writeObjects(pasteboardItems(from: savedContents))
+             }
++            recovery = nil
+         }
+     }
+diff --git a/VoiceInk/Shortcuts/RecordingShortcutManager.swift b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
+--- a/VoiceInk/Shortcuts/RecordingShortcutManager.swift
++++ b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
+@@ -415,4 +415,7 @@
+         }
+         isShortcutPressed = true
++        if action == .primaryRecording {
++            SyllOperationalLog.shared.shortcutDown()
++        }
+         activeRecordingShortcutAction = action
+         activeShortcutCanCancelAccidentalStart = canCurrentShortcutPressCancelAccidentalStart
+diff --git a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
+--- a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
++++ b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
+@@ -202,4 +202,11 @@
+ 
+             if let recordedFile {
++                SyllOperationalLog.shared.recorderStopped(
++                    audioURL: recordedFile,
++                    snapshot: recorder.recorder?.completedCaptureSnapshot
++                )
++            }
++
++            if let recordedFile {
+                 if !shouldCancelRecording, stoppedUseCase == .command {
+                     await runCommand(on: recordedFile)
+@@ -265,4 +272,5 @@
+                             let permanentURL = self.recordingsDirectory.appendingPathComponent(fileName)
+                             self.recordedFile = permanentURL
++                            SyllOperationalLog.shared.recorderRequested(audioURL: permanentURL)
+ 
+                             let realtimeAudioGate = RealtimeAudioChunkGate()
+@@ -272,4 +280,5 @@
+ 
+                             try await self.recorder.startRecording(toOutputFile: permanentURL)
++                            SyllOperationalLog.shared.audioUnitStarted(audioURL: permanentURL)
+ 
+                             guard self.activeRecordingStartID == startID,
+@@ -715,5 +724,12 @@
+         let shouldFinishSessionImmediately: Bool
+         switch recordingState {
+-        case .starting, .recording:
++        case .starting:
++            if activeRecordingUseCase == .newSession {
++                SyllOperationalLog.shared.startupCanceled(audioURL: recordedFile)
++            }
++            requestRecordingCancellation()
++            await finishActiveRecorderCancellation()
++            shouldFinishSessionImmediately = false
++        case .recording:
+             requestRecordingCancellation()
+             await finishActiveRecorderCancellation()
+diff --git a/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift b/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
+--- a/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
++++ b/VoiceInk/Transcription/Engine/TranscriptionPipeline.swift
+@@ -70,4 +70,5 @@
+         var outputForDelivery: OutputRuntimeConfiguration?
+         var responseConfig: EnhancementRuntimeConfiguration?
++        var diagnosticInferenceSeconds: Double?
+ 
+         func finishCanceledTranscription() async {
+@@ -97,4 +98,11 @@
+             await finishCanceledTranscription()
+             return
++        }
++
++        let captureFailureEvidence = !assistant.isFollowUp && model.name == SyllPhase1Runtime.modelName
++        if captureFailureEvidence { SyllFailureEvidenceStore.shared.begin(audioURL: audioURL) }
++        defer {
++            SyllFailureEvidenceStore.shared.discard(audioURL: audioURL)
++            SyllOperationalLog.shared.discard(audioURL: audioURL)
+         }
+ 
+@@ -259,4 +267,15 @@
+             do {
+                 try modelContext.save()
++                if captureFailureEvidence,
++                   transcription.transcriptionStatus == TranscriptionStatus.completed.rawValue {
++                    _ = SyllFailureEvidenceStore.shared.stageCompleted(
++                        audioURL: audioURL, transcriptionID: transcription.id,
++                        timestamp: transcription.timestamp, finalText: finalText ?? transcription.text,
++                        model: model.name, audioDuration: transcription.duration
++                    )
++                    diagnosticInferenceSeconds = SyllFailureEvidenceStore.shared.inferenceSeconds(
++                        for: transcription.id
++                    )
++                }
+                 if didInsertSessionMetric {
+                     NotificationCenter.default.post(name: .sessionMetricsDidChange, object: nil)
+@@ -294,4 +313,13 @@
+             )
+         )
++        if captureFailureEvidence,
++           transcription.transcriptionStatus == TranscriptionStatus.completed.rawValue,
++           let inference = transcription.transcriptionDuration {
++            SyllOperationalLog.shared.completed(
++                audioURL: audioURL, transcriptionID: transcription.id, timestamp: transcription.timestamp,
++                model: model.name, audioDuration: transcription.duration,
++                inferenceSeconds: diagnosticInferenceSeconds, transcriptionPipelineSeconds: inference
++            )
++        }
+     }
+ 
+diff --git a/VoiceInk/Transcription/FluidAudio/FluidAudioTranscriptionService.swift b/VoiceInk/Transcription/FluidAudio/FluidAudioTranscriptionService.swift
+--- a/VoiceInk/Transcription/FluidAudio/FluidAudioTranscriptionService.swift
++++ b/VoiceInk/Transcription/FluidAudio/FluidAudioTranscriptionService.swift
+@@ -188,4 +188,5 @@
+         )
+         var decoderState = TdtDecoderState.make(decoderLayers: await asrManager.decoderLayerCount)
++        let inferenceStart = ProcessInfo.processInfo.systemUptime
+         let result = try await asrManager.transcribe(
+             audioURL,
+@@ -194,4 +195,11 @@
+         )
+ 
++        if model.name == SyllPhase1Runtime.modelName {
++            await SyllFailureEvidenceStore.shared.captureRaw(
++                audioURL: audioURL, text: result.text,
++                inferenceSeconds: ProcessInfo.processInfo.systemUptime - inferenceStart
++            )
++        }
++
+         return TextNormalizer.shared.normalizeSentence(result.text)
+     }

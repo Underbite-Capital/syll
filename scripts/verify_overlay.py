@@ -187,6 +187,14 @@ def main() -> int:
         raise AssertionError("command mode must extend the accepted hybrid Fn handler, not replace it")
 
     dictionary = require_text("dictionary.yaml", "version: 1", "canonical:")
+    require_text("patches/syll-local-diagnostics.patch", "firstAcceptedBufferNanos", "captureRaw", "resetClipboard")
+    require_text("overlays/core/VoiceInk/Services/SyllFailureEvidenceStore.swift", "maximumMarkedCount", "maximumOrdinaryCount", "maximumOrdinaryBytes", "rawRecognizerText")
+    require_text("overlays/core/VoiceInk/Services/SyllOperationalLog.swift", "firstAcceptedBufferUptimeSeconds", "maximumSessions")
+    require_text("overlays/core/VoiceInk/Paste/SyllClipboardResetPolicy.swift", "currentSessionID == expectedSessionID", "currentText == expectedText")
+    menu = require_text("overlays/core/VoiceInk/Views/SyllMenuBarView.swift", "Reset Clipboard", "Copy Last Transcription")
+    for hidden in ('Button("Toggle Recorder")', 'Button("Setup…")', 'Button("History…")', 'Button("Advanced Settings…")'):
+        if hidden in menu:
+            raise AssertionError(f"legacy menu entry remains: {hidden}")
     term_count = len(re.findall(r"^\s*- canonical:", dictionary, flags=re.MULTILINE))
     if term_count < 20:
         raise AssertionError(f"dictionary seed unexpectedly small: {term_count} terms")

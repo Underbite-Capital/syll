@@ -37,3 +37,29 @@ SwiftPM also needs FluidAudio's pinned NemoTextProcessing binary artifact in
 its cache. Save JSONL outputs outside Git; supplied audio may be private. The
 generated synthetic clips are only API and latency probes. They are not a
 benchmark of David's voice, microphone, accent, or real terminology errors.
+
+## Explicitly marked real failures
+
+Syll keeps marked failures outside the repository at
+`~/Library/Application Support/Syll/FailureEvidence/marked/<transcription UUID>/`.
+Each directory contains `failure.json` and the exact copied WAV. Enumerate it
+without importing private audio into Git:
+
+```sh
+python3 tools/recognition-eval/list-marked-failures.py
+```
+
+The JSONL output gives an `audioPath` for each failure. Pass the same path to
+the evaluator with no strategy option for baseline TDT, then with
+`--ctc-rescore --dictionary <explicit-local-dictionary.json>` only if the
+separate CTC model is installed. Compare raw transcripts before deterministic
+correction. A marked failure is evidence of a bad user experience, not a
+ground-truth corrected transcript. The metadata records what the shipping path
+produced.
+
+David also authorized a bounded ordinary-session corpus under the sibling
+`ordinary/` directory for 24 hours or 100 sessions (at most 512 MiB). The same
+enumerator can inspect it using `--corpus "$HOME/Library/Application Support/Syll/FailureEvidence/ordinary"`.
+These records are operational data, not accepted corrections. Both corpora can
+be deleted from Syll's Diagnostics menu. Do not copy their private WAV or JSON
+files into this repository.
