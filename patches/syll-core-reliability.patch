@@ -1,0 +1,52 @@
+diff --git a/VoiceInk/Services/LastTranscriptionService.swift b/VoiceInk/Services/LastTranscriptionService.swift
+index 4ae7ebc..93a45b0 100644
+--- a/VoiceInk/Services/LastTranscriptionService.swift
++++ b/VoiceInk/Services/LastTranscriptionService.swift
+@@ -3,6 +3,22 @@ import SwiftData
+ 
+ class LastTranscriptionService: ObservableObject {
+ 
++    static func latestCompletedText(from modelContext: ModelContext) -> String? {
++        var descriptor = FetchDescriptor<Transcription>(
++            predicate: #Predicate<Transcription> {
++                $0.transcriptionStatus == "completed" && $0.text != "" && $0.audioFileURL != nil
++            },
++            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
++        )
++        descriptor.fetchLimit = 1
++        do {
++            return try modelContext.fetch(descriptor).first?.text
++        } catch {
++            print("Error fetching last completed transcription: \(error)")
++            return nil
++        }
++    }
++
+     static func getLastTranscription(from modelContext: ModelContext) -> Transcription? {
+         var descriptor = FetchDescriptor<Transcription>(
+             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+@@ -19,7 +35,7 @@ class LastTranscriptionService: ObservableObject {
+     }
+ 
+     static func copyLastTranscription(from modelContext: ModelContext) {
+-        guard let lastTranscription = getLastTranscription(from: modelContext) else {
++        guard let textToCopy = latestCompletedText(from: modelContext) else {
+             Task { @MainActor in
+                 NotificationManager.shared.showNotification(
+                     title: String(localized: "No transcription available"),
+@@ -29,15 +45,6 @@ class LastTranscriptionService: ObservableObject {
+             return
+         }
+ 
+-        // Prefer enhanced text; fallback to original text
+-        let textToCopy: String = {
+-            if let enhancedText = lastTranscription.enhancedText, !enhancedText.isEmpty {
+-                return enhancedText
+-            } else {
+-                return lastTranscription.text
+-            }
+-        }()
+-
+         let success = ClipboardManager.copyToClipboard(textToCopy)
+ 
+         Task { @MainActor in

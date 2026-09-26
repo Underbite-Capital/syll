@@ -66,6 +66,7 @@ def main() -> int:
     validate_patch_syntax("patches/syll-recovery.patch", recount=True)
     validate_patch_syntax("patches/syll-shell-structural.patch", recount=True)
     validate_patch_syntax("patches/syll-command-mode.patch")
+    validate_patch_syntax("patches/syll-core-reliability.patch")
     if not args.core_only:
         validate_patch_syntax("patches/boosting.patch")
 
@@ -76,6 +77,7 @@ def main() -> int:
         "git -C \"$APP_DIR\" apply --check",
         "patches/syll-branding.patch",
         "patches/syll-command-mode.patch",
+        "patches/syll-core-reliability.patch",
     )
     if "MODE=\"full\"" not in prepare:
         raise AssertionError("full overlay must remain the explicit default")
@@ -98,6 +100,16 @@ def main() -> int:
         "overlays/core/VoiceInk/Transcription/Processing/PersonalDictionaryCorrector.swift",
         "selected.reversed()",
         "caseInsensitive",
+    )
+    require_text(
+        "overlays/core/VoiceInk/Transcription/Processing/WordReplacementService.swift",
+        "DeterministicDictationCleaner.clean(text)",
+        "PersonalDictionaryCorrector.correct(cleanedText, entries: entries)",
+    )
+    require_text(
+        "patches/syll-core-reliability.patch",
+        "latestCompletedText",
+        'transcriptionStatus == "completed"',
     )
     require_text(
         "overlays/core/VoiceInk/Services/AIEnhancement/CleanupOutputValidator.swift",

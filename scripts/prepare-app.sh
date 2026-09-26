@@ -119,6 +119,8 @@ git -C "$APP_DIR" apply --recount --check "$ROOT_DIR/patches/syll-shell-structur
 git -C "$APP_DIR" apply --recount "$ROOT_DIR/patches/syll-shell-structural.patch"
 git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-command-mode.patch"
 git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-command-mode.patch"
+git -C "$APP_DIR" apply --check "$ROOT_DIR/patches/syll-core-reliability.patch"
+git -C "$APP_DIR" apply "$ROOT_DIR/patches/syll-core-reliability.patch"
 
 if [[ "$MODE" == "full" ]]; then
   cp -R "$ROOT_DIR/overlays/boosting/." "$APP_DIR/"

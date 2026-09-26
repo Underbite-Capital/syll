@@ -11,17 +11,13 @@ class WordReplacementService {
             forKey: PersonalDictionaryService.isCorrectionsEnabledKey
         ) as? Bool ?? true
 
-        let correctedText: String
+        // Normalize generic dictation before resolving user-authoritative spellings.
+        // Correction is last so sentence casing cannot rewrite a preferred term.
+        let cleanedText = DeterministicDictationCleaner.clean(text)
         if isEnabled {
             let entries = PersonalDictionaryService.entries(from: context)
-            correctedText = PersonalDictionaryCorrector.correct(text, entries: entries)
-        } else {
-            correctedText = text
+            return PersonalDictionaryCorrector.correct(cleanedText, entries: entries)
         }
-
-        // Syll's normal cleanup is local and deterministic. Optional VoiceInk AI
-        // enhancement remains a separate downstream feature and is not required
-        // for cleanup quality.
-        return DeterministicDictationCleaner.clean(correctedText)
+        return cleanedText
     }
 }
