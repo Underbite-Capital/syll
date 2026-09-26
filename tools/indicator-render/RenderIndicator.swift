@@ -46,38 +46,77 @@ struct RenderIndicator {
             try writePNG(
                 ZStack {
                     color
-                    VStack(spacing: 16) {
-                        Text("SYLL · \(background.uppercased()) CONTENT")
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .tracking(1.2)
-                        HStack(spacing: 10) {
-                            ForEach(levels) { level in
-                                VStack(spacing: 8) {
-                                    Text(level.title)
-                                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                                        .tracking(0.8)
-                                    Text("TRUE SIZE · 56 × 19 PT")
-                                        .font(.system(size: 9, design: .rounded))
-                                        .opacity(0.75)
-                                    SyllWaveformPill(audioMeterProvider: { level.meter })
-                                        .frame(width: 190, height: 40)
-                                    Text("3× VIEW FOR DETAIL")
-                                        .font(.system(size: 9, design: .rounded))
-                                        .opacity(0.75)
-                                    SyllWaveformPill(audioMeterProvider: { level.meter })
-                                        .scaleEffect(3)
-                                        .frame(width: 190, height: 84)
-                                }
-                                .frame(width: 190)
+                    HStack(spacing: 10) {
+                        ForEach(levels) { level in
+                            VStack(spacing: 10) {
+                                Text(level.title)
+                                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    .tracking(0.8)
+                                SyllWaveformPill(audioMeterProvider: { level.meter })
+                                    .frame(width: 190, height: 40)
                             }
+                            .frame(width: 190)
                         }
                     }
                     .foregroundStyle(labelColor)
                 }
-                .frame(width: 820, height: 240),
+                .frame(width: 820, height: 105),
                 to: directory.appendingPathComponent("states-\(background).png")
             )
+
+            try writePNG(
+                ZStack {
+                    color
+                    HStack(spacing: 10) {
+                        ForEach(levels) { level in
+                            VStack(spacing: 15) {
+                                Text(level.title)
+                                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    .tracking(0.8)
+                                SyllWaveformPill(audioMeterProvider: { level.meter })
+                                    .scaleEffect(3.5)
+                                    .frame(width: 190, height: 75)
+                            }
+                            .frame(width: 190)
+                        }
+                    }
+                    .foregroundStyle(labelColor)
+                }
+                .frame(width: 820, height: 160),
+                to: directory.appendingPathComponent("detail-\(background).png")
+            )
         }
+
+        let comparisonMeter = levels[2].meter
+        try writePNG(
+            ZStack {
+                Color(red: 0.91, green: 0.93, blue: 0.96)
+                HStack(spacing: 12) {
+                    VStack(spacing: 8) {
+                        Text("BUILD 242 · REJECTED")
+                        SyllWaveformPill242(audioMeterProvider: { comparisonMeter })
+                            .frame(width: 190, height: 36)
+                        Text("64 × 22 PT")
+                    }
+                    VStack(spacing: 8) {
+                        Text("2977DA0 · REJECTED")
+                        SyllWaveformPill2977(audioMeterProvider: { comparisonMeter })
+                            .frame(width: 190, height: 36)
+                        Text("56 × 19 PT")
+                    }
+                    VStack(spacing: 8) {
+                        Text("THIN EXPLORATION")
+                        SyllWaveformPill(audioMeterProvider: { comparisonMeter })
+                            .frame(width: 190, height: 36)
+                        Text("48 × 15 PT")
+                    }
+                }
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(Color.black.opacity(0.65))
+            }
+            .frame(width: 630, height: 112),
+            to: directory.appendingPathComponent("comparison-true-size.png")
+        )
 
         try writePNG(
             ZStack {
@@ -95,7 +134,7 @@ struct RenderIndicator {
         let loud = SyllWaveformPill.meterLevel(levels[3].meter)
         precondition(SyllWaveformPill.barActivity(index: 0, level: silent) == 0)
         precondition(SyllWaveformPill.barActivity(index: 7, level: loud) > 0)
-        print("Rendered the product view at four microphone levels over light and dark content")
+        print("Rendered four actual-view levels, enlarged details, and exact historical size comparison")
     }
 
     @MainActor
