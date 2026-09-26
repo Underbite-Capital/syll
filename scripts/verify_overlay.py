@@ -56,7 +56,6 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--core-only",
-        'cat-file -e "$UPSTREAM_COMMIT^{commit}"',
         action="store_true",
         help="Validate only the independently usable core overlay and patch.",
     )
@@ -75,6 +74,7 @@ def main() -> int:
         "scripts/prepare-app.sh",
         UPSTREAM_COMMIT,
         "--core-only",
+        'cat-file -e "$UPSTREAM_COMMIT^{commit}"',
         "git -C \"$APP_DIR\" apply --check",
         "patches/syll-branding.patch",
         "patches/syll-command-mode.patch",
