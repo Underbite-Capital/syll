@@ -12,7 +12,6 @@ struct SyllMenuBarView: View {
         Button("Copy Last Transcription") { LastTranscriptionService.copyLastTranscription(from: engine.modelContext) }
         Button("Reset Clipboard") { resetClipboard() }
         Button("Personal Dictionary…") { show(.dictionary) }
-        Divider()
         Toggle("Launch at Login", isOn: Binding(get: { launchAtLoginManager.isEnabled }, set: { launchAtLoginManager.setEnabled($0) }))
             .disabled(launchAtLoginManager.isUpdating)
         Divider()

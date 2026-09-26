@@ -100,6 +100,21 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
     }
 
     var body: some View {
+        Group {
+            if !stateProvider.isCommandMode && !hasCommandOutcome && !hasAssistantResponse {
+                if stateProvider.recordingState == .recording {
+                    SyllWaveformPill(audioMeterProvider: recorder.audioMeterSnapshot)
+                        .transition(.opacity)
+                }
+            } else {
+                legacyContent
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: stateProvider.recordingState == .recording)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+    }
+
+    private var legacyContent: some View {
         VStack(spacing: 0) {
             if hasCommandOutcome {
                 commandOutcomeSection
@@ -130,6 +145,5 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
         .animation(.easeInOut(duration: 0.3), value: hasLiveTranscript)
         .animation(.easeInOut(duration: 0.3), value: hasAssistantResponse)
         .animation(.easeInOut(duration: 0.2), value: hasCommandOutcome)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 }

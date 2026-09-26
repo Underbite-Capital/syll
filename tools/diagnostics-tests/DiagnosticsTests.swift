@@ -96,12 +96,26 @@ struct DiagnosticsTests {
         precondition(markedEntries.count == SyllFailureEvidenceStore.maximumMarkedCount)
 
         var newestOrdinaryID = UUID()
-        for _ in 0..<(SyllFailureEvidenceStore.maximumOrdinaryCount + 3) {
+        var stagedOrdinaryIDs: [UUID] = []
+        for index in 0..<8 {
             newestOrdinaryID = UUID()
             precondition(stage(newestOrdinaryID))
+            stagedOrdinaryIDs.append(newestOrdinaryID)
+            let directory = ordinary.appendingPathComponent(newestOrdinaryID.uuidString)
+            try FileManager.default.setAttributes(
+                [.creationDate: Date().addingTimeInterval(Double(index - 100))],
+                ofItemAtPath: directory.path
+            )
         }
-        let ordinaryEntries = try FileManager.default.contentsOfDirectory(at: ordinary, includingPropertiesForKeys: nil)
-        precondition(ordinaryEntries.count == SyllFailureEvidenceStore.maximumOrdinaryCount)
+        try store.pruneOrdinary(now: Date(), maximumCount: 5)
+        let countEntries = try FileManager.default.contentsOfDirectory(at: ordinary, includingPropertiesForKeys: nil)
+        precondition(countEntries.count == 5)
+        precondition(!FileManager.default.fileExists(atPath: ordinary.appendingPathComponent(stagedOrdinaryIDs[0].uuidString).path))
+        precondition(FileManager.default.fileExists(atPath: ordinary.appendingPathComponent(newestOrdinaryID.uuidString).path))
+        try store.pruneOrdinary(now: Date(), maximumBytes: Int64(bytes.count * 2))
+        let byteEntries = try FileManager.default.contentsOfDirectory(at: ordinary, includingPropertiesForKeys: nil)
+        precondition(byteEntries.count == 2, "byte cap must evict oldest sessions")
+        precondition(FileManager.default.fileExists(atPath: ordinary.appendingPathComponent(newestOrdinaryID.uuidString).path))
         precondition(store.canMarkLatest)
         let newestMarkedID = try store.markLatest()
         precondition(newestMarkedID == newestOrdinaryID)
@@ -135,6 +149,17 @@ struct DiagnosticsTests {
         let startup = try decoder.decode(SyllOperationalLog.StartupCancellation.self,
                                          from: Data(contentsOf: startupFile))
         precondition(startup.event == "canceled-before-recording-ready")
+
+        // Operational timing shares the ordinary 30-day window and evicts oldest first.
+        try FileManager.default.setAttributes(
+            [.creationDate: Date().addingTimeInterval(-100)], ofItemAtPath: logURL.path
+        )
+        try FileManager.default.setAttributes(
+            [.creationDate: Date()], ofItemAtPath: startupFile.path
+        )
+        try log.prune(now: Date(), maximumCount: 1)
+        precondition(!FileManager.default.fileExists(atPath: logURL.path))
+        precondition(FileManager.default.fileExists(atPath: startupFile.path))
 
         // Local capture cost with the ordinary corpus already at its count cap.
         let minuteAudio = base.appendingPathComponent("minute.wav")

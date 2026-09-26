@@ -5,12 +5,12 @@ import Foundation
 final class SyllFailureEvidenceStore {
     static let shared = SyllFailureEvidenceStore()
     static let markWindow: TimeInterval = 5 * 60
-    static let ordinaryLifetime: TimeInterval = 24 * 60 * 60
-    static let maximumOrdinaryCount = 100
-    static let maximumOrdinaryBytes: Int64 = 512 * 1024 * 1024
+    static let ordinaryLifetime: TimeInterval = 30 * 24 * 60 * 60
+    static let maximumOrdinaryCount = 3_000
+    static let maximumOrdinaryBytes: Int64 = 4 * 1024 * 1024 * 1024
     static let markedLifetime: TimeInterval = 30 * 24 * 60 * 60
     static let maximumMarkedCount = 20
-    static let maximumAudioBytes = 32 * 1024 * 1024
+    static let maximumAudioBytes = 64 * 1024 * 1024
 
     struct MarkedFailure: Codable {
         let schemaVersion: Int
@@ -171,24 +171,31 @@ final class SyllFailureEvidenceStore {
         self.latest = nil
     }
 
-    func pruneOrdinary(now: Date) throws {
+    func pruneOrdinary(
+        now: Date,
+        maximumBytes: Int64? = nil,
+        maximumCount: Int? = nil
+    ) throws {
         guard files.fileExists(atPath: ordinaryDirectory.path) else { return }
         let directories = try files.contentsOfDirectory(at: ordinaryDirectory, includingPropertiesForKeys: [.creationDateKey])
             .filter { $0.hasDirectoryPath }
+        for temporary in directories where temporary.pathExtension == "tmp" {
+            try files.removeItem(at: temporary)
+        }
         let sorted = directories.sorted {
             let lhs = (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             let rhs = (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
-            return lhs > rhs
-        }
+            return lhs == rhs ? $0.lastPathComponent > $1.lastPathComponent : lhs > rhs
+        }.filter { $0.pathExtension != "tmp" }
         var retainedBytes: Int64 = 0
         for (index, directory) in sorted.enumerated() {
             let created = (try? directory.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             let audio = (try? files.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey]))?
                 .first { $0.lastPathComponent.hasPrefix("recording.") }
             let bytes = Int64((try? audio?.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
-            if directory.pathExtension == "tmp" || index >= Self.maximumOrdinaryCount
+            if index >= (maximumCount ?? Self.maximumOrdinaryCount)
                 || now.timeIntervalSince(created) > Self.ordinaryLifetime
-                || retainedBytes + bytes > Self.maximumOrdinaryBytes {
+                || retainedBytes + bytes > (maximumBytes ?? Self.maximumOrdinaryBytes) {
                 try files.removeItem(at: directory)
             } else {
                 retainedBytes += bytes

@@ -4,7 +4,8 @@ import Foundation
 @MainActor
 final class SyllOperationalLog {
     static let shared = SyllOperationalLog()
-    static let maximumSessions = 500
+    // Ordinary audio allows 3,000 sessions; leave room for startup cancellations.
+    static let maximumSessions = 5_000
     static let lifetime: TimeInterval = 30 * 24 * 60 * 60
 
     struct Capture: Codable {
@@ -148,18 +149,18 @@ final class SyllOperationalLog {
         if files.fileExists(atPath: directory.path) { try files.removeItem(at: directory) }
     }
 
-    func prune(now: Date) throws {
+    func prune(now: Date, maximumCount: Int? = nil) throws {
         guard files.fileExists(atPath: directory.path) else { return }
         let filesInDirectory = try files.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.creationDateKey])
             .filter { $0.pathExtension == "json" }
         let sorted = filesInDirectory.sorted {
             let lhs = (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             let rhs = (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
-            return lhs > rhs
+            return lhs == rhs ? $0.lastPathComponent > $1.lastPathComponent : lhs > rhs
         }
         for (index, file) in sorted.enumerated() {
             let created = (try? file.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
-            if index >= Self.maximumSessions || now.timeIntervalSince(created) > Self.lifetime {
+            if index >= (maximumCount ?? Self.maximumSessions) || now.timeIntervalSince(created) > Self.lifetime {
                 try files.removeItem(at: file)
             }
         }
