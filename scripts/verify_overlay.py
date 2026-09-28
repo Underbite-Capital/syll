@@ -219,8 +219,8 @@ def main() -> int:
     if project.get("phase") != "implementation-candidate":
         raise AssertionError("project phase must be implementation-candidate")
     implementation = project.get("implementation", {})
-    if implementation.get("command_mode_state") != "open-not-accepted-not-verified":
-        raise AssertionError("Command Mode must remain explicitly open and unaccepted until human QA passes")
+    if implementation.get("command_mode_state") != "dormant-not-accepted":
+        raise AssertionError("Command Mode must remain dormant and explicitly unaccepted")
 
     boosting_dir = ROOT / "overlays/boosting"
     boosting_patch = ROOT / "patches/boosting.patch"

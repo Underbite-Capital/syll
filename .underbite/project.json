@@ -5,8 +5,8 @@
   "project_slug": "david-voice-local-dictation",
   "phase": "implementation-candidate",
   "created_on": "2026-08-20",
-  "updated_on": "2026-09-26",
-  "outcome": "Keep Syll small and local while preserving the ordinary hold-to-dictate path, dependable last-transcription recovery, and user-authoritative dictionary spelling. Command Mode and the future double-tap action remain unaccepted decisions.",
+  "updated_on": "2026-09-28",
+  "outcome": "Keep Syll small and local with ordinary hold-Fn dictation, dependable last-transcription recovery, user-authoritative dictionary spelling, and bounded local evidence for later learning. Fn double-tap has no special action; Command Mode remains dormant and unaccepted.",
   "owners": {
     "commercial": "David",
     "technical": "David",
@@ -14,11 +14,13 @@
   },
   "implementation": {
     "branch": "main",
+    "installed_build": 244,
+    "installed_product_source": "b602c7439b1d8c8804a2b2337d9e264592cddae4",
     "voiceink_upstream_commit": "3c211dab63454f18cf3f8b58750ec6bf3f5b4d17",
     "core_fallback": "./scripts/prepare-app.sh --core-only",
     "human_acceptance_required": true,
-    "command_mode_state": "open-not-accepted-not-verified",
-    "latest_human_qa": "failed: command reached HUD but mixed digit-and-scale port speech was interpreted as an invalid port"
+    "command_mode_state": "dormant-not-accepted",
+    "latest_human_qa": "Build 243 recording indicator provisionally accepted for normal use: now really small, but looks all right. Build 244 has machine verification only."
   },
   "research": {
     "commercial_diligence": "complete-light",

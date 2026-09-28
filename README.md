@@ -4,11 +4,19 @@ A small, menu-bar-first macOS dictation app built on VoiceInk's mature recorder 
 
 ## Current status
 
-`origin/main@008f23a` remains the reviewed build-241 source, and signed build 241 is installed for controlled local QA. David's first short immediate-start dictation captured its beginning, and the new waveform responded; that single trial does not resolve historical first-word loss. The build-241 pill was too large; the build-242 proposal at `daa3c48` and the 56 × 19 pt proposal at `2977da0` were also rejected. Local `main` carries an **unaccepted, unbuilt thin visual exploration** with icy-blue capacity bars and orange speech fill. The unchanged menu-bar mark did not deliver David's requested orange identity. See `.underbite/2026-09-26-thin-indicator-exploration.md`.
+Signed build 244 is installed for David's ordinary use from product source
+`b602c7439b1d8c8804a2b2337d9e264592cddae4`. Machine verification
+established its identity, signature, single process, and local Parakeet V3
+prewarm. Normal use is the next evidence source; this is not a claim that
+dictation quality or the enlarged indicator has received new human acceptance.
 
-Build 241 investigates David's separate report that short recordings can miss their first words. It adds bounded local capture evidence, a smaller everyday menu, `Reset Clipboard`, and a live-meter recording pill; it does not change the recognizer or claim to have fixed first-word loss. See `.underbite/2026-09-26-recording-start-and-operational-diagnostics.md` and `.underbite/2026-09-26-final-surface-candidate.md` for the source trace, retention limits, and unresolved live evidence gate.
-
-Command Mode is **OPEN / NOT ACCEPTED / NOT VERIFIED**. The historical build-239 candidate failed human QA: double-tap reached the command HUD, but “What’s on port 3 thousand?” was interpreted as an invalid port. Its code remains in the composition without product acceptance. The future double-tap action is undecided. See `.underbite/2026-09-11-syll-command-mode-candidate.md`.
+The recording indicator retains the thin icy-blue/orange build-243 design at
+54 × 17 pt. David chose to keep the build-243 monochrome menu-bar mark. Hold Fn
+remains ordinary dictation; rapid double-tap has no special action. Command
+Mode code and its failed historical QA remain dormant and unaccepted. The local
+operational corpus remains active, with no change to retention. First-word
+loss in short recordings remains an observed issue under measurement, not a
+fixed bug. See `.underbite/2026-09-28-syll-winddown.md`.
 
 ## Scope
 

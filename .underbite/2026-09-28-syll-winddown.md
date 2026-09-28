@@ -1,7 +1,7 @@
 # Syll wind-down decision and release scope
 
-Status: authorized final local release candidate; installation and normal-use
-evidence must be recorded separately.
+Status: build 244 installed and machine verified. Normal-use evidence remains
+pending; no further scripted human QA is requested.
 
 ## Human product authority
 
@@ -42,5 +42,27 @@ accumulated real-use evidence rather than a speculative recognition change.
 - No intentional changes to capture, ASR, dictionary, clipboard, menu
   structure, diagnostics, application icon, or menu-bar identity.
 
-Build, signing, installation, and normal-use observations are separate from
-this source decision.
+## Exact release receipt
+
+- Product source: `b602c7439b1d8c8804a2b2337d9e264592cddae4`.
+- Final signed app: build 244, `capital.underbite.syll`, Apple Development
+  Team `A635S52367`; executable SHA-256
+  `37defb6f8987c88a8a855febd31ea855f1dec0bbea4f56725c86d7086582c4fc`.
+- Candidate archive SHA-256:
+  `bfa92ddf76d1f9a983b6111420fa3fd855bccf1e789c24ecd0ea67c111cc9f46`.
+- Build 243 rollback archive:
+  `build/recovery-archives/Syll-build243-pre-244-working.zip`, SHA-256
+  `514b0cfdb5dd1828c9032f15148b2c70b151e3e19a79cbec50315b8bfc80acef`.
+  Its executable SHA-256 is
+  `36e7e69d9422fb74ceddc696e7f3afbcc89b61b16718f37a5b624015269c8008`.
+- Clean core composition, overlay verification, focused shortcut and diagnostic
+  tests, focused Xcode recovery/dictionary/cleanup tests, signed build, and
+  deep/strict signature verification passed. One pre-existing dictionary test
+  fixture initially failed because it used a forbidden duplicate alias; the
+  fixture was corrected without product logic changes and the rerun passed.
+- Post-install: exactly one intended Syll process from `/Applications/Syll.app`;
+  Parakeet V3 prewarm completed in 0.21 seconds. App support evidence file
+  count was 56 before and after cutover. No data or permission reset occurred.
+
+Installation and machine checks do not constitute new human acceptance. The
+next product review starts from ordinary-use evidence accumulated this week.
