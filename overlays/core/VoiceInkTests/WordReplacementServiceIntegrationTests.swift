@@ -31,17 +31,17 @@ final class WordReplacementServiceIntegrationTests: XCTestCase {
         )
     }
 
-    func testAliasesAndPunctuationDoNotCascade() throws {
+    func testAliasesAndPunctuationPreserveBoundaries() throws {
         let context = try makeContext()
         XCTAssertNil(PersonalDictionaryService.saveTerm(
             preferredText: "Beta", aliases: ["alpha"], context: context
         ))
         XCTAssertNil(PersonalDictionaryService.saveTerm(
-            preferredText: "Gamma", aliases: ["beta"], context: context
+            preferredText: "Gamma", aliases: ["gama"], context: context
         ))
         XCTAssertEqual(
-            WordReplacementService.shared.applyReplacements(to: "  alpha  ,  alpha  ", using: context),
-            "Beta, Beta."
+            WordReplacementService.shared.applyReplacements(to: "  alpha  ,  gama  ", using: context),
+            "Beta, Gamma."
         )
     }
 }

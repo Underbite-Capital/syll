@@ -37,6 +37,8 @@ accumulated real-use evidence rather than a speculative recognition change.
   timer and continues through ordinary shortcut handling. It no longer calls
   `latchCommandMode` or sets hands-free recording as a double-tap action.
 - Dictation-shortcut explanatory copy no longer promises a double-tap action.
+- A dictionary integration-test fixture now uses two valid, non-conflicting
+  aliases; no dictionary product logic changed.
 - No intentional changes to capture, ASR, dictionary, clipboard, menu
   structure, diagnostics, application icon, or menu-bar identity.
 
