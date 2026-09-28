@@ -23,7 +23,7 @@ struct SyllControlView: View {
     private var setup: some View {
         VStack(alignment: .leading, spacing: 22) {
             AppScreenHeader(title: "Set up Syll")
-            setupCard(title: "Dictation shortcut", detail: "Hold Fn / Globe, speak, then release. Double-tap to lock; tap once to finish.") {
+            setupCard(title: "Dictation shortcut", detail: "Hold Fn / Globe, speak, then release.") {
                 HStack {
                     Text("Current shortcut")
                     Spacer()

@@ -105,10 +105,10 @@ struct RenderIndicator {
                         Text("56 × 19 PT")
                     }
                     VStack(spacing: 8) {
-                        Text("THIN EXPLORATION")
+                        Text("THIN WIND-DOWN CANDIDATE")
                         SyllWaveformPill(audioMeterProvider: { comparisonMeter })
                             .frame(width: 190, height: 36)
-                        Text("48 × 15 PT")
+                        Text("54 × 17 PT")
                     }
                 }
                 .font(.system(size: 10, weight: .medium, design: .rounded))

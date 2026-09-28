@@ -1,0 +1,15 @@
+diff --git a/VoiceInk/Shortcuts/RecordingShortcutManager.swift b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
+--- a/VoiceInk/Shortcuts/RecordingShortcutManager.swift
++++ b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
+@@ -403,11 +403,6 @@
+         if mode == .hybrid, pendingHybridTap != nil {
+             pendingHybridTap?.cancel()
+             pendingHybridTap = nil
+-            isHandsFreeRecording = true
+-            if action == .primaryRecording {
+-                latchCommandMode()
+-            }
+-            return
+         }
+ 
+         guard !isShortcutPressed else {

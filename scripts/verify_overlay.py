@@ -67,6 +67,7 @@ def main() -> int:
     validate_patch_syntax("patches/syll-shell-structural.patch", recount=True)
     validate_patch_syntax("patches/syll-command-mode.patch")
     validate_patch_syntax("patches/syll-core-reliability.patch")
+    validate_patch_syntax("patches/syll-disable-double-tap.patch")
     if not args.core_only:
         validate_patch_syntax("patches/boosting.patch")
 
@@ -79,6 +80,7 @@ def main() -> int:
         "patches/syll-branding.patch",
         "patches/syll-command-mode.patch",
         "patches/syll-core-reliability.patch",
+        "patches/syll-disable-double-tap.patch",
     )
     if "MODE=\"full\"" not in prepare:
         raise AssertionError("full overlay must remain the explicit default")
@@ -185,6 +187,14 @@ def main() -> int:
     )
     if "SyllFnGestureStateMachine" in command_patch:
         raise AssertionError("command mode must extend the accepted hybrid Fn handler, not replace it")
+    disable_double_tap = require_text(
+        "patches/syll-disable-double-tap.patch",
+        "-            isHandsFreeRecording = true",
+        "-                latchCommandMode()",
+        "-            return",
+    )
+    if disable_double_tap.count("diff --git ") != 1:
+        raise AssertionError("double-tap disablement must touch only the shortcut handler")
 
     dictionary = require_text("dictionary.yaml", "version: 1", "canonical:")
     require_text("patches/syll-local-diagnostics.patch", "firstAcceptedBufferNanos", "captureRaw", "resetClipboard")
