@@ -68,16 +68,7 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
             )
             .frame(maxWidth: .infinity)
 
-            if stateProvider.isObservationMode {
-                HStack(spacing: 4) {
-                    Image(systemName: "book.closed.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("Remember")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundStyle(.white.opacity(0.92))
-                .accessibilityLabel("Remember observation recording")
-            } else if stateProvider.isCommandMode {
+            if stateProvider.isCommandMode {
                 Image(systemName: "terminal")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.orange)
@@ -124,10 +115,21 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
     var body: some View {
         Group {
             if !stateProvider.isCommandMode && !hasCommandOutcome && !hasAssistantResponse
-                && !stateProvider.isObservationMode && !hasObservationOutcome {
+                && !hasObservationOutcome {
                 if stateProvider.recordingState == .recording {
-                    SyllWaveformPill(audioMeterProvider: recorder.audioMeterSnapshot)
+                    // Remember uses the ordinary pill unchanged except for its
+                    // violet accent; no control bar, label, or extra chrome.
+                    if stateProvider.isObservationMode {
+                        SyllWaveformPill(
+                            audioMeterProvider: recorder.audioMeterSnapshot,
+                            accent: SyllWaveformPill.rememberViolet,
+                            accessibilityName: "Recording observation"
+                        )
                         .transition(.opacity)
+                    } else {
+                        SyllWaveformPill(audioMeterProvider: recorder.audioMeterSnapshot)
+                            .transition(.opacity)
+                    }
                 }
             } else {
                 legacyContent

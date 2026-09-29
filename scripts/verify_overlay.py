@@ -249,8 +249,14 @@ def main() -> int:
     require_text(
         "overlays/core/VoiceInk/Views/Recorder/MiniRecorderView.swift",
         "isObservationMode",
-        "Remember",
+        "rememberViolet",
+        "Recording observation",
         "SyllObservationOutcomeView",
+    )
+    require_text(
+        "overlays/core/VoiceInk/Views/Recorder/SyllWaveformPill.swift",
+        "rememberViolet",
+        "ordinaryOrange",
     )
 
     dictionary = require_text("dictionary.yaml", "version: 1", "canonical:")

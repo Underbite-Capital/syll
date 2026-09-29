@@ -4,7 +4,26 @@ import SwiftUI
 struct SyllWaveformPill: View {
     let audioMeterProvider: () -> AudioMeter
 
-    private let orange = Color(red: 1.0, green: 0.54, blue: 0.0)
+    private static let ordinaryOrange = Color(red: 1.0, green: 0.54, blue: 0.0)
+    /// Restrained soft violet marking a Remember observation recording. The
+    /// ordinary dictation accent is unchanged.
+    static let rememberViolet = Color(red: 0.76, green: 0.65, blue: 0.95)
+
+    /// Accent colour for the microphone dot and active waveform bars.
+    /// Ordinary dictation must use the default.
+    private let accent: Color
+    private let accessibilityName: String
+
+    init(
+        audioMeterProvider: @escaping () -> AudioMeter,
+        accent: Color = SyllWaveformPill.ordinaryOrange,
+        accessibilityName: String = "Recording"
+    ) {
+        self.audioMeterProvider = audioMeterProvider
+        self.accent = accent
+        self.accessibilityName = accessibilityName
+    }
+
     private let iceBlue = Color(red: 0.79, green: 0.93, blue: 1.0)
     private let barCount = 8
     private static let barHeights: [CGFloat] = [3.6, 5.2, 7.3, 9.9, 11.8, 10.2, 7.7, 4.7]
@@ -15,9 +34,9 @@ struct SyllWaveformPill: View {
             let level = Self.meterLevel(audioMeterProvider())
             HStack(spacing: 5.85) {
                 Circle()
-                    .fill(orange.opacity(0.88))
+                    .fill(accent.opacity(0.88))
                     .frame(width: 4.6, height: 4.6)
-                    .shadow(color: orange.opacity(0.14), radius: 1)
+                    .shadow(color: accent.opacity(0.14), radius: 1)
 
                 HStack(alignment: .center, spacing: 1.24) {
                     ForEach(0..<barCount, id: \.self) { index in
@@ -27,7 +46,7 @@ struct SyllWaveformPill: View {
                                 .fill(iceBlue.opacity(0.82))
                                 .frame(width: 1.4, height: Self.barHeights[index])
                             Capsule()
-                                .fill(orange)
+                                .fill(accent)
                                 .frame(width: 1.4, height: Self.barHeights[index] * CGFloat(activity))
                                 .opacity(min(1, activity * 1.4))
                         }
@@ -45,7 +64,7 @@ struct SyllWaveformPill: View {
             }
             .clipShape(Capsule())
             .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
-            .accessibilityLabel("Recording")
+            .accessibilityLabel(accessibilityName)
         }
     }
 
