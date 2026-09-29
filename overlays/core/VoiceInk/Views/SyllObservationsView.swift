@@ -67,7 +67,7 @@ struct SyllObservationsView: View {
             }
         }
         .frame(minWidth: 460, minHeight: 320)
-        .alert("Delete this observation?", presenting: deletionCandidate) { candidate in
+        .alert("Delete this observation?", item: $deletionCandidate) { candidate in
             Button("Delete", role: .destructive) {
                 try? store.delete(id: candidate.id)
                 deletionCandidate = nil
