@@ -2,16 +2,14 @@ import Foundation
 
 enum DeterministicDictationCleaner {
     static func clean(_ text: String) -> String {
-        var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !result.isEmpty else { return result }
+        let original = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !original.isEmpty else { return original }
 
-        // A sentence-opening "yeah so" is overwhelmingly dictation scaffolding in
-        // this interaction. Do not remove either word elsewhere in the sentence.
-        result = replacing(
-            pattern: #"(?i)^\s*yeah\s*,?\s+so\s*,?\s+"#,
-            in: result,
-            with: ""
-        )
+        // Cleanup never deletes utterance-leading words. Real-use evidence
+        // (447 ordinary sessions, 2026-09-26…29) showed the former
+        // sentence-opening "yeah so" strip removing the first two spoken words
+        // of five dictations, which David experiences as first-word loss.
+        var result = original
 
         // Remove only the small, high-confidence hesitation set already used by
         // VoiceInk. Deliberately exclude semantic hedges such as like, maybe,
@@ -29,7 +27,13 @@ enum DeterministicDictationCleaner {
         result = replacing(pattern: #"\s*[,;:]$"#, in: result, with: "")
         result = result.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !result.isEmpty else { return result }
+        // Never let cleanup erase a whole utterance: if only punctuation
+        // survives (for example "Mm-hmm." becoming "-."), keep the recognized
+        // text instead. A genuine short utterance must stay deliverable.
+        if result.range(of: #"[\p{L}\p{M}\p{N}]"#, options: .regularExpression) == nil {
+            result = original
+        }
+
         result = uppercaseFirstLetter(in: result)
 
         if let last = result.last, !".!?…".contains(last) {
