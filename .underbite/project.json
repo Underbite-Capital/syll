@@ -6,21 +6,21 @@
   "phase": "implementation-candidate",
   "created_on": "2026-08-20",
   "updated_on": "2026-09-29",
-  "outcome": "Keep Syll small and local with ordinary hold-Fn dictation, dependable last-transcription recovery, user-authoritative dictionary spelling, and bounded local evidence for later learning. Chosen direction for Fn double-tap: observation capture that returns at closeout and gets addressed (see .underbite/2026-09-29-observation-capture-direction.md); a built, uninstalled implementation candidate exists on branch candidate/remember-observations (see .underbite/2026-09-29-remember-candidate.md). Command Mode remains dormant and unaccepted.",
+  "outcome": "Keep Syll small and local. Hold Fn is ordinary dictation. Double-tap Fn captures a Remember observation for later closeout review; David uses that manually before any consumption automation. Command Mode remains dormant and unaccepted.",
   "owners": {
     "commercial": "David",
     "technical": "David",
     "project_manager": "David"
   },
   "implementation": {
-    "branch": "candidate/remember-observations",
+    "branch": "main",
     "installed_build": 248,
     "installed_product_source": "6b953da",
     "voiceink_upstream_commit": "3c211dab63454f18cf3f8b58750ec6bf3f5b4d17",
     "core_fallback": "./scripts/prepare-app.sh --core-only",
     "human_acceptance_required": true,
     "command_mode_state": "dormant-not-accepted",
-    "latest_human_qa": "Build 243 recording indicator provisionally accepted for normal use: now really small, but looks all right. Build 244 has machine verification only."
+    "latest_human_qa": "Build 243 recording indicator provisionally accepted for normal use. Build 248 Remember is installed and has been used live; formal acceptance is still open."
   },
   "research": {
     "commercial_diligence": "complete-light",

@@ -4,19 +4,16 @@ A small, menu-bar-first macOS dictation app built on VoiceInk's mature recorder 
 
 ## Current status
 
-Signed build 244 is installed for David's ordinary use from product source
-`b602c7439b1d8c8804a2b2337d9e264592cddae4`. Machine verification
-established its identity, signature, single process, and local Parakeet V3
-prewarm. Normal use is the next evidence source; this is not a claim that
-dictation quality or the enlarged indicator has received new human acceptance.
-
-The recording indicator retains the thin icy-blue/orange build-243 design at
-54 × 17 pt. David chose to keep the build-243 monochrome menu-bar mark. Hold Fn
-remains ordinary dictation; rapid double-tap has no special action. Command
-Mode code and its failed historical QA remain dormant and unaccepted. The local
-operational corpus remains active, with no change to retention. First-word
-loss in short recordings remains an observed issue under measurement, not a
-fixed bug. See `.underbite/2026-09-28-syll-winddown.md`.
+Signed build 248 is installed for ordinary use from product source
+`6b953da`. Hold Fn is ordinary dictation. Double-tap Fn starts a Remember
+observation: the same 54 × 17 pt pill with a violet accent, a later tap
+finishes, and a single Esc cancels. A successful observation is saved locally
+and is not pasted; the Observations menu opens the saved items. Failures stay
+visible. Command Mode remains dormant and unaccepted. Nightly closeout
+scheduling is off. Remember is in manual use so David can learn whether it is
+worth automating. Capture and short-utterance quality are still open. The
+build-245 cleanup repair (leading words are not deleted) is in this source.
+See `.underbite/2026-09-29-remember-silent-save.md`.
 
 ## Scope
 
@@ -82,6 +79,8 @@ The script refuses to overwrite dirty work unless `--reset` is explicit. Do not 
 - Acceptance checklist: `docs/MANUAL-QA.md`
 - Local recognition research and bounded evaluator: `.underbite/2026-09-26-local-recognition-study.md` and `tools/recognition-eval/` (no product-path change or acceptance)
 - Local recording-start investigation and bounded operational evidence: `.underbite/2026-09-26-recording-start-and-operational-diagnostics.md` (candidate only)
+- Remember observations: `tools/observation-closeout/README.md`
+- Local usage counts: `python3 tools/syll-usage/usage.py`
 
 Do not make ad hoc edits under `app/` and then forget them. Port accepted fixes back into an overlay or patch so a clean checkout can reproduce the build.
 
