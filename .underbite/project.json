@@ -6,7 +6,7 @@
   "phase": "implementation-candidate",
   "created_on": "2026-08-20",
   "updated_on": "2026-09-29",
-  "outcome": "Keep Syll small and local with ordinary hold-Fn dictation, dependable last-transcription recovery, user-authoritative dictionary spelling, and bounded local evidence for later learning. Chosen direction for Fn double-tap: observation capture that returns at closeout and gets addressed (see .underbite/2026-09-29-observation-capture-direction.md); not yet implemented. Command Mode remains dormant and unaccepted.",
+  "outcome": "Keep Syll small and local with ordinary hold-Fn dictation, dependable last-transcription recovery, user-authoritative dictionary spelling, and bounded local evidence for later learning. Chosen direction for Fn double-tap: observation capture that returns at closeout and gets addressed (see .underbite/2026-09-29-observation-capture-direction.md); a built, uninstalled implementation candidate exists on branch candidate/remember-observations (see .underbite/2026-09-29-remember-candidate.md). Command Mode remains dormant and unaccepted.",
   "owners": {
     "commercial": "David",
     "technical": "David",
