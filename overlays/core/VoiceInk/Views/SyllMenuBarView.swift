@@ -12,6 +12,15 @@ struct SyllMenuBarView: View {
         Button("Copy Last Transcription") { LastTranscriptionService.copyLastTranscription(from: engine.modelContext) }
         Button("Reset Clipboard") { resetClipboard() }
         Button("Personal Dictionary…") { show(.dictionary) }
+        Menu("Observations") {
+            Text(observationStatusLine)
+            if let preview = latestObservationPreview {
+                Text(preview)
+            }
+            Divider()
+            Button("Copy Observations Awaiting Review") { copyPendingObservations() }
+            Button("Reveal Observations Folder") { revealObservations() }
+        }
         Toggle("Launch at Login", isOn: Binding(get: { launchAtLoginManager.isEnabled }, set: { launchAtLoginManager.setEnabled($0) }))
             .disabled(launchAtLoginManager.isUpdating)
         Divider()
@@ -65,6 +74,45 @@ struct SyllMenuBarView: View {
         } catch {
             NotificationManager.shared.showNotification(title: "Could not delete all diagnostic evidence", type: .error)
         }
+    }
+
+    private var observationStatusLine: String {
+        let summary = SyllObservationStore.shared.summary()
+        if summary.awaitingReview == 0 {
+            return "No observations awaiting review"
+        }
+        return "\(summary.awaitingReview) observation\(summary.awaitingReview == 1 ? "" : "s") awaiting review"
+    }
+
+    private var latestObservationPreview: String? {
+        guard let latest = SyllObservationStore.shared.latest() else { return nil }
+        let text = latest.correctedText ?? latest.text
+        let trimmed = text.count > 80 ? String(text.prefix(80)) + "…" : text
+        return "Latest: \(trimmed)"
+    }
+
+    /// Manual retrieval fallback: copies new/unresolved observations only when
+    /// David explicitly asks. Capture itself never touches the clipboard.
+    private func copyPendingObservations() {
+        let pending = SyllObservationStore.shared.awaitingReview()
+        guard !pending.isEmpty else {
+            NotificationManager.shared.showNotification(title: "No observations awaiting review", type: .info)
+            return
+        }
+        let formatter = ISO8601DateFormatter()
+        let text = pending.map { observation in
+            "[\(formatter.string(from: observation.createdAt))] \(observation.id.uuidString)\n\(observation.correctedText ?? observation.text)"
+        }.joined(separator: "\n\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        NotificationManager.shared.showNotification(
+            title: "Copied \(pending.count) observation\(pending.count == 1 ? "" : "s") awaiting review",
+            type: .success
+        )
+    }
+
+    private func revealObservations() {
+        NSWorkspace.shared.open(SyllObservationStore.shared.root)
     }
 
     private func show(_ destination: ViewType) {

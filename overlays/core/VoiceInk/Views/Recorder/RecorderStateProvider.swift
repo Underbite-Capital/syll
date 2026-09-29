@@ -7,4 +7,6 @@ protocol RecorderStateProvider: AnyObject {
     var partialTranscript: String { get }
     var isCommandMode: Bool { get }
     var commandOutcome: SyllCommandOutcome? { get }
+    var isObservationMode: Bool { get }
+    var observationOutcome: SyllObservationOutcome? { get }
 }

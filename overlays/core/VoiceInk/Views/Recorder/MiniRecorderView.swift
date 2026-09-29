@@ -34,6 +34,10 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
         stateProvider.commandOutcome != nil
     }
 
+    private var hasObservationOutcome: Bool {
+        stateProvider.observationOutcome != nil
+    }
+
     private var shouldShowCloseButton: Bool {
         hasAssistantResponse && stateProvider.recordingState == .idle && !assistantSession.isBusy
     }
@@ -64,7 +68,16 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
             )
             .frame(maxWidth: .infinity)
 
-            if stateProvider.isCommandMode {
+            if stateProvider.isObservationMode {
+                HStack(spacing: 4) {
+                    Image(systemName: "book.closed.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("Remember")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(.white.opacity(0.92))
+                .accessibilityLabel("Remember observation recording")
+            } else if stateProvider.isCommandMode {
                 Image(systemName: "terminal")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.orange)
@@ -90,6 +103,15 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
         }
     }
 
+    @ViewBuilder
+    private var observationOutcomeSection: some View {
+        if let outcome = stateProvider.observationOutcome {
+            SyllObservationOutcomeView(outcome: outcome)
+
+            Divider().background(Color.white.opacity(0.15))
+        }
+    }
+
     private var transcriptSection: some View {
         VStack(spacing: 0) {
             if hasLiveTranscript {
@@ -101,7 +123,8 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
 
     var body: some View {
         Group {
-            if !stateProvider.isCommandMode && !hasCommandOutcome && !hasAssistantResponse {
+            if !stateProvider.isCommandMode && !hasCommandOutcome && !hasAssistantResponse
+                && !stateProvider.isObservationMode && !hasObservationOutcome {
                 if stateProvider.recordingState == .recording {
                     SyllWaveformPill(audioMeterProvider: recorder.audioMeterSnapshot)
                         .transition(.opacity)
@@ -119,7 +142,9 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
 
     private var legacyContent: some View {
         VStack(spacing: 0) {
-            if hasCommandOutcome {
+            if hasObservationOutcome {
+                observationOutcomeSection
+            } else if hasCommandOutcome {
                 commandOutcomeSection
             } else if hasAssistantResponse {
                 AssistantPanelView(
@@ -134,9 +159,11 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
             controlBar
         }
         .frame(
-            width: hasCommandOutcome
+            width: hasObservationOutcome
                 ? commandWidth
-                : (hasAssistantResponse ? assistantWidth : (hasLiveTranscript ? expandedWidth : compactWidth))
+                : (hasCommandOutcome
+                    ? commandWidth
+                    : (hasAssistantResponse ? assistantWidth : (hasLiveTranscript ? expandedWidth : compactWidth)))
         )
         .background(Color.black)
         .clipShape(
@@ -148,5 +175,6 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
         .animation(.easeInOut(duration: 0.3), value: hasLiveTranscript)
         .animation(.easeInOut(duration: 0.3), value: hasAssistantResponse)
         .animation(.easeInOut(duration: 0.2), value: hasCommandOutcome)
+        .animation(.easeInOut(duration: 0.2), value: hasObservationOutcome)
     }
 }
