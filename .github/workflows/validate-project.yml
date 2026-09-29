@@ -50,6 +50,17 @@ jobs:
             scripts/SyllCommandExecutorTests.swift \
             -o /tmp/syll-command-executor-tests
           /tmp/syll-command-executor-tests
+      - name: Run session routing boundary tests
+        run: |
+          swiftc \
+            overlays/core/VoiceInk/Transcription/Engine/SyllSessionRouting.swift \
+            scripts/SyllSessionRoutingTests.swift \
+            -o /tmp/syll-routing-tests
+          /tmp/syll-routing-tests
+      - name: Run observation store tests
+        run: ./tools/observation-tests/run.sh
+      - name: Run observation closeout bridge tests
+        run: python3 tools/observation-closeout/test_bridge.py
       - name: Run repository context tests
         run: |
           swiftc \

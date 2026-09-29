@@ -8,9 +8,28 @@ import Foundation
 /// operate on their own roots). Each observation keeps the recognized
 /// original text immutably; later correction and closeout review are additive
 /// fields, so review never silently loses what David actually said.
+///
+/// Status model (lightweight, no task framework):
+/// - "new": captured, no response yet.
+/// - "reviewed": a response exists and nothing is outstanding.
+/// - "awaitingDecision": a proposal or question is waiting on David.
+/// - "unresolved": a concern that remains open after review.
+/// - "addressed": David explicitly marked it addressed. An agent response
+///   alone never marks an observation addressed.
+///
+/// Outstanding work for closeout = new + awaitingDecision + unresolved.
+///
+/// Failed captures keep their audio under `Failed/`, bounded to
+/// `maximumFailedCount` entries (oldest pruned) and explicitly deletable.
+/// This is not an indefinite audio archive.
 @MainActor
-final class SyllObservationStore {
+final class SyllObservationStore: ObservableObject {
     static let shared = SyllObservationStore()
+
+    static let maximumFailedCount = 20
+
+    /// Emitted when the store changes so open views refresh.
+    @Published private(set) var changeStamp = 0
 
     struct Review: Codable, Equatable, Sendable {
         let respondedAt: Date
@@ -18,9 +37,13 @@ final class SyllObservationStore {
         let response: String
         /// "answered", "proposal", or "unresolved".
         let disposition: String
+        /// The exact text the response reviewed. If the observation is
+        /// corrected later, this keeps the response's relationship to the old
+        /// wording explicit instead of silently attaching it to the new text.
+        let basisText: String?
     }
 
-    struct Observation: Codable, Equatable, Sendable {
+    struct Observation: Codable, Equatable, Sendable, Identifiable {
         let schemaVersion: Int
         let id: UUID
         let createdAt: Date
@@ -35,16 +58,39 @@ final class SyllObservationStore {
         let audioFile: String
         let audioDurationSeconds: Double
         let model: String
-        /// "new", "reviewed", or "unresolved".
+        /// "new", "reviewed", "awaitingDecision", "unresolved", "addressed".
         var status: String
         var review: Review?
+
+        /// The text a reader should see first.
+        var displayText: String { correctedText ?? text }
+
+        /// True when a correction changed the wording after the review was
+        /// written, so the response must not read as reviewing the new text.
+        var reviewPredatesCorrection: Bool {
+            guard let basis = review?.basisText else { return false }
+            return basis != displayText
+        }
+
+        var isOutstanding: Bool {
+            status == "new" || status == "awaitingDecision" || status == "unresolved"
+        }
+    }
+
+    struct Failure: Equatable, Sendable, Identifiable {
+        let id: String
+        let reason: String
+        let failedAt: String
+        let audioFile: String
     }
 
     struct Summary: Equatable, Sendable {
         let new: Int
+        let awaitingDecision: Int
         let unresolved: Int
         let reviewed: Int
-        var awaitingReview: Int { new + unresolved }
+        let addressed: Int
+        var outstanding: Int { new + awaitingDecision + unresolved }
     }
 
     private let files: FileManager
@@ -104,11 +150,13 @@ final class SyllObservationStore {
             try? files.removeItem(at: recordURL(for: id))
             throw error
         }
+        changeStamp += 1
         return observation
     }
 
-    /// Keep the audio of a failed observation recoverable and visible on disk.
-    /// Best effort: never throws, because this runs on an already-failed path.
+    /// Keep the audio of a failed capture recoverable and visible on disk,
+    /// bounded to the newest `maximumFailedCount` failures. Best effort:
+    /// never throws, because this runs on an already-failed path.
     func recordFailure(audioURL: URL, reason: String, now: Date = Date()) {
         let id = UUID()
         try? secureDirectory(failedDirectory)
@@ -126,28 +174,114 @@ final class SyllObservationStore {
             try? data.write(to: noteURL, options: .atomic)
             if files.fileExists(atPath: noteURL.path) { try? secureFile(noteURL) }
         }
+        try? pruneFailures()
+        changeStamp += 1
     }
 
-    /// Counts by status. Observations in `Failed/` are not counted; they were
-    /// never saved observations.
+    private func pruneFailures() throws {
+        guard files.fileExists(atPath: failedDirectory.path) else { return }
+        let notes = try files.contentsOfDirectory(
+            at: failedDirectory, includingPropertiesForKeys: [.creationDateKey]
+        ).filter { $0.pathExtension == "json" }
+        let sorted = notes.sorted {
+            let lhs = (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+            let rhs = (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+            return lhs == rhs ? $0.lastPathComponent > $1.lastPathComponent : lhs > rhs
+        }
+        for (index, note) in sorted.enumerated() where index >= Self.maximumFailedCount {
+            let stem = note.deletingPathExtension().lastPathComponent
+            try? files.removeItem(at: note)
+            try? files.removeItem(at: failedDirectory.appendingPathComponent(stem + ".wav"))
+        }
+    }
+
+    func failures() -> [Failure] {
+        guard let urls = try? files.contentsOfDirectory(at: failedDirectory, includingPropertiesForKeys: nil) else {
+            return []
+        }
+        return urls
+            .filter { $0.pathExtension == "json" }
+            .compactMap { url -> Failure? in
+                guard let data = try? Data(contentsOf: url),
+                      let note = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+                      let id = note["id"] else { return nil }
+                return Failure(
+                    id: id,
+                    reason: note["reason"] ?? "Unknown reason",
+                    failedAt: note["failedAt"] ?? "",
+                    audioFile: note["audioFile"] ?? ""
+                )
+            }
+            .sorted { $0.failedAt > $1.failedAt }
+    }
+
+    func deleteFailure(id: String) {
+        try? files.removeItem(at: failedDirectory.appendingPathComponent(id + ".json"))
+        try? files.removeItem(at: failedDirectory.appendingPathComponent(id + ".wav"))
+        changeStamp += 1
+    }
+
+    /// Additive correction: the original recognized text is never rewritten.
+    /// An existing review keeps its `basisText`, making any staleness visible.
+    func correct(id: UUID, text: String, now: Date = Date()) throws {
+        var observation = try load(id: id)
+        observation.correctedText = text
+        observation.correctedAt = now
+        try write(observation)
+        changeStamp += 1
+    }
+
+    /// Explicit human decision that an observation is handled. Review alone
+    /// never sets this.
+    func markAddressed(id: UUID) throws {
+        var observation = try load(id: id)
+        observation.status = "addressed"
+        try write(observation)
+        changeStamp += 1
+    }
+
+    /// Explicit removal of an observation and its audio.
+    func delete(id: UUID) throws {
+        let observation = try load(id: id)
+        try files.removeItem(at: recordURL(for: id))
+        try? files.removeItem(at: root.appendingPathComponent(observation.audioFile))
+        changeStamp += 1
+    }
+
+    /// Counts by status. Failures are not counted; they were never saved
+    /// observations.
     func summary() -> Summary {
-        var new = 0, unresolved = 0, reviewed = 0
+        var new = 0, awaitingDecision = 0, unresolved = 0, reviewed = 0, addressed = 0
         for observation in all() {
             switch observation.status {
             case "new": new += 1
+            case "awaitingDecision": awaitingDecision += 1
             case "unresolved": unresolved += 1
+            case "addressed": addressed += 1
             default: reviewed += 1
             }
         }
-        return Summary(new: new, unresolved: unresolved, reviewed: reviewed)
+        return Summary(new: new, awaitingDecision: awaitingDecision,
+                       unresolved: unresolved, reviewed: reviewed, addressed: addressed)
     }
 
-    /// New and unresolved observations, oldest first — the closeout contract.
-    func awaitingReview() -> [Observation] {
-        all().filter { $0.status == "new" || $0.status == "unresolved" }
+    /// Outstanding work for closeout: no response yet, awaiting David's
+    /// decision, or still unresolved. Oldest first.
+    func outstanding() -> [Observation] {
+        all().filter { $0.isOutstanding }
     }
+
+    /// All observations, oldest first, including reviewed and addressed.
+    func allObservations() -> [Observation] { all() }
 
     func latest() -> Observation? { all().last }
+
+    func load(id: UUID) throws -> Observation {
+        let url = recordURL(for: id)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(Observation.self, from: Data(contentsOf: url))
+    }
 
     private func all() -> [Observation] {
         guard let urls = try? files.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else {

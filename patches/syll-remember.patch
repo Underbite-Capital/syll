@@ -1,3 +1,23 @@
+diff --git a/VoiceInk/Shortcuts/RecorderPanelShortcutManager.swift b/VoiceInk/Shortcuts/RecorderPanelShortcutManager.swift
+index 04bdd48..264fc50 100644
+--- a/VoiceInk/Shortcuts/RecorderPanelShortcutManager.swift
++++ b/VoiceInk/Shortcuts/RecorderPanelShortcutManager.swift
+@@ -114,6 +114,15 @@ final class RecorderPanelShortcutManager: ObservableObject {
+     private func handleEscapeShortcut() async {
+         guard ShortcutStore.shortcut(for: .cancelRecorder) == nil else { return }
+ 
++        // A Remember observation capture cancels with a single Esc, including
++        // during startup. Ordinary dictation keeps the existing double-Esc
++        // behavior below.
++        if recorderUIManager.isObservationCaptureActive {
++            resetEscapeState()
++            await recorderUIManager.cancelRecording()
++            return
++        }
++
+         let now = Date()
+         if let firstTime = firstEscapePressTime,
+             now.timeIntervalSince(firstTime) <= escapeDoublePressThreshold
 diff --git a/VoiceInk/Shortcuts/RecordingShortcutManager.swift b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
 index 89f917c..60cc442 100644
 --- a/VoiceInk/Shortcuts/RecordingShortcutManager.swift
@@ -51,11 +71,31 @@ index 89f917c..60cc442 100644
          }
  
          guard !isShortcutPressed else {
+diff --git a/VoiceInk/Transcription/Engine/RecorderUIManager.swift b/VoiceInk/Transcription/Engine/RecorderUIManager.swift
+index 497fc99..1a1a471 100644
+--- a/VoiceInk/Transcription/Engine/RecorderUIManager.swift
++++ b/VoiceInk/Transcription/Engine/RecorderUIManager.swift
+@@ -270,6 +270,15 @@ class RecorderUIManager: ObservableObject, RecorderPanelPresenting {
+         await dismissRecorderPanel()
+     }
+ 
++    /// True while a Remember observation capture is in flight (starting or
++    /// recording). Drives the single-Esc cancellation gesture for Remember;
++    /// ordinary dictation cancellation is unchanged.
++    var isObservationCaptureActive: Bool {
++        guard let engine else { return false }
++        return engine.isObservationMode
++            && (engine.recordingState == .starting || engine.recordingState == .recording)
++    }
++
+     func discardRecording() async {
+         guard let engine = engine else { return }
+         await engine.discardRecording()
 diff --git a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
-index 87a06f7..d92f3e0 100644
+index 87a06f7..987f4ab 100644
 --- a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
 +++ b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
-@@ -87,6 +87,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -87,10 +87,20 @@ class VoiceInkEngine: NSObject, ObservableObject {
          case newSession
          case assistantFollowUp
          case command
@@ -63,7 +103,20 @@ index 87a06f7..d92f3e0 100644
  
          var isAssistantFollowUp: Bool {
              self == .assistantFollowUp
-@@ -98,6 +99,8 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         }
++
++        var routing: SyllSessionRouting.UseCase {
++            switch self {
++            case .newSession: return .newSession
++            case .assistantFollowUp: return .assistantFollowUp
++            case .command: return .command
++            case .observation: return .observation
++            }
++        }
+     }
+ 
+     @Published var recordingState: RecordingState = .idle
+@@ -98,6 +108,8 @@ class VoiceInkEngine: NSObject, ObservableObject {
      @Published var partialTranscript: String = ""
      @Published private(set) var isCommandMode = false
      @Published private(set) var commandOutcome: SyllCommandOutcome?
@@ -72,7 +125,7 @@ index 87a06f7..d92f3e0 100644
      var currentSession: TranscriptionSession?
      private var currentSessionTranscriptionConfiguration: TranscriptionRuntimeConfiguration?
      private var activeRecordingStartID: UUID?
-@@ -110,6 +113,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -110,6 +122,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
      private var voiceInkRefinePreparationTask: Task<Void, Never>?
      private var commandContext: SyllCommandContext?
      private var commandOutcomeDismissal: Task<Void, Never>?
@@ -80,17 +133,36 @@ index 87a06f7..d92f3e0 100644
      private let commandExecutor = SyllCommandExecutor()
  
      let recorder = Recorder()
-@@ -211,6 +215,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
-                 if !shouldCancelRecording, stoppedUseCase == .command {
+@@ -208,10 +221,17 @@ class VoiceInkEngine: NSObject, ObservableObject {
+             }
+ 
+             if let recordedFile {
+-                if !shouldCancelRecording, stoppedUseCase == .command {
++                // The routing boundary is a single tested function: a Remember
++                // observation session can never fall through into ordinary
++                // delivery, and cancellation always wins.
++                switch SyllSessionRouting.outcome(for: stoppedUseCase.routing, cancelRequested: shouldCancelRecording) {
++                case .command:
                      await runCommand(on: recordedFile)
                      await cleanupResources()
-+                } else if !shouldCancelRecording, stoppedUseCase == .observation {
+-                } else if !shouldCancelRecording {
++                case .observation:
 +                    await runObservation(on: recordedFile)
 +                    await cleanupResources()
-                 } else if !shouldCancelRecording {
++                case .ordinaryDelivery:
                      let transcription = makeRecordingTranscription(
                          for: recordedFile,
-@@ -247,6 +254,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+                         text: "",
+@@ -227,7 +247,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+                         audioURL: recordedFile,
+                         contextStore: activeRecordingContextStore
+                     )
+-                } else {
++                case .cancellation:
+                     await finishActiveRecorderCancellation()
+                 }
+             } else {
+@@ -247,6 +267,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
              commandOutcomeDismissal?.cancel()
              commandOutcome = nil
              isCommandMode = false
@@ -100,7 +172,7 @@ index 87a06f7..d92f3e0 100644
              partialTranscript = ""
              activeRecordingUseCase = recordingUseCase
              clearActiveRecordingContext()
-@@ -621,6 +631,21 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -621,6 +644,21 @@ class VoiceInkEngine: NSObject, ObservableObject {
          clearActiveRecordingContext()
      }
  
@@ -122,7 +194,17 @@ index 87a06f7..d92f3e0 100644
      func discardRecording() async {
          requestRecordingCancellation()
          activeRecordingStartID = nil
-@@ -707,6 +732,90 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -632,6 +670,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         recordedFile = nil
+         partialTranscript = ""
+         shouldCancelRecording = false
++        isObservationMode = false
++        observationOutcomeDismissal?.cancel()
++        observationOutcome = nil
+         recordingState = .idle
+         await cleanupResources()
+     }
+@@ -707,6 +748,90 @@ class VoiceInkEngine: NSObject, ObservableObject {
          }
      }
  
@@ -213,7 +295,7 @@ index 87a06f7..d92f3e0 100644
      private func showCommandOutcome(_ outcome: SyllCommandOutcome) {
          commandOutcome = outcome
          isCommandMode = false
-@@ -766,6 +875,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -766,6 +891,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
          commandOutcome = nil
          isCommandMode = false
          commandContext = nil
@@ -222,4 +304,24 @@ index 87a06f7..d92f3e0 100644
 +        isObservationMode = false
          await recorder.stopRecording()
          recordedFile = nil
+         recordingState = .idle
+@@ -788,7 +916,18 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         activeRecordingStartID = nil
+         clearActiveRecordingContext()
+         await recorder.stopRecording()
+-        await saveCanceledRecording()
++        if activeRecordingUseCase == .observation {
++            // A canceled Remember capture keeps nothing: no observation, no
++            // ordinary history record, no retained audio.
++            if let recordedFile {
++                try? FileManager.default.removeItem(at: recordedFile)
++            }
++        } else {
++            await saveCanceledRecording()
++        }
++        isObservationMode = false
++        observationOutcomeDismissal?.cancel()
++        observationOutcome = nil
+         recordedFile = nil
+         partialTranscript = ""
          recordingState = .idle

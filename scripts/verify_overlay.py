@@ -203,20 +203,38 @@ def main() -> int:
         "latchObservationMode()",
         "isHandsFreeRecording = true",
         "case observation",
-        "stoppedUseCase == .observation",
+        "SyllSessionRouting.outcome(for: stoppedUseCase.routing",
         "await runObservation(on: recordedFile)",
         "SyllObservationStore.shared.save",
         "recordFailure",
+        "isObservationCaptureActive",
         "SyllPhase1Runtime.transcriptionConfiguration",
     )
     if "CursorPaster" in remember_patch or "NSPasteboard" in remember_patch:
         raise AssertionError("observation capture must not add any paste or clipboard path")
     require_text(
+        "overlays/core/VoiceInk/Transcription/Engine/SyllSessionRouting.swift",
+        "case observation",
+        "if cancelRequested { return .cancellation }",
+        "return .observation",
+    )
+    require_text(
         "overlays/core/VoiceInk/Services/SyllObservationStore.swift",
         "originalText",
         "schemaVersion",
-        "awaitingReview",
+        "outstanding",
+        "awaitingDecision",
+        "markAddressed",
+        "basisText",
+        "maximumFailedCount",
         "automatic expiry",
+    )
+    require_text(
+        "overlays/core/VoiceInk/Views/SyllObservationsView.swift",
+        "Mark Addressed",
+        "reviewPredatesCorrection",
+        "Failed captures",
+        "Correct…",
     )
     require_text(
         "overlays/core/VoiceInk/Views/Recorder/SyllObservationOutcomeView.swift",

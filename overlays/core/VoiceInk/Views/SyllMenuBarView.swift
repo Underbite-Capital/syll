@@ -14,11 +14,9 @@ struct SyllMenuBarView: View {
         Button("Personal Dictionary…") { show(.dictionary) }
         Menu("Observations") {
             Text(observationStatusLine)
-            if let preview = latestObservationPreview {
-                Text(preview)
-            }
+            Button("Open Observations…") { SyllObservationWindowController.shared.show() }
             Divider()
-            Button("Copy Observations Awaiting Review") { copyPendingObservations() }
+            Button("Copy Outstanding Observations") { copyOutstandingObservations() }
             Button("Reveal Observations Folder") { revealObservations() }
         }
         Toggle("Launch at Login", isOn: Binding(get: { launchAtLoginManager.isEnabled }, set: { launchAtLoginManager.setEnabled($0) }))
@@ -78,35 +76,28 @@ struct SyllMenuBarView: View {
 
     private var observationStatusLine: String {
         let summary = SyllObservationStore.shared.summary()
-        if summary.awaitingReview == 0 {
-            return "No observations awaiting review"
+        if summary.outstanding == 0 {
+            return "No outstanding observations"
         }
-        return "\(summary.awaitingReview) observation\(summary.awaitingReview == 1 ? "" : "s") awaiting review"
+        return "\(summary.outstanding) outstanding observation\(summary.outstanding == 1 ? "" : "s")"
     }
 
-    private var latestObservationPreview: String? {
-        guard let latest = SyllObservationStore.shared.latest() else { return nil }
-        let text = latest.correctedText ?? latest.text
-        let trimmed = text.count > 80 ? String(text.prefix(80)) + "…" : text
-        return "Latest: \(trimmed)"
-    }
-
-    /// Manual retrieval fallback: copies new/unresolved observations only when
+    /// Manual retrieval fallback: copies outstanding observations only when
     /// David explicitly asks. Capture itself never touches the clipboard.
-    private func copyPendingObservations() {
-        let pending = SyllObservationStore.shared.awaitingReview()
+    private func copyOutstandingObservations() {
+        let pending = SyllObservationStore.shared.outstanding()
         guard !pending.isEmpty else {
-            NotificationManager.shared.showNotification(title: "No observations awaiting review", type: .info)
+            NotificationManager.shared.showNotification(title: "No outstanding observations", type: .info)
             return
         }
         let formatter = ISO8601DateFormatter()
         let text = pending.map { observation in
-            "[\(formatter.string(from: observation.createdAt))] \(observation.id.uuidString)\n\(observation.correctedText ?? observation.text)"
+            "[\(formatter.string(from: observation.createdAt))] \(observation.id.uuidString)\n\(observation.displayText)"
         }.joined(separator: "\n\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         NotificationManager.shared.showNotification(
-            title: "Copied \(pending.count) observation\(pending.count == 1 ? "" : "s") awaiting review",
+            title: "Copied \(pending.count) observation\(pending.count == 1 ? "" : "s")",
             type: .success
         )
     }
