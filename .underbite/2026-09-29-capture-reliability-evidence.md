@@ -102,3 +102,37 @@ only on explicit approval, then (1) dictate "Mm-hmm." and confirm the delivered
 text is not "-."; (2) dictate a sentence opening with "Yeah, so ..." and
 confirm both words survive; (3) confirm ordinary dictation, dictionary terms,
 clipboard behavior, and the indicator are unchanged.
+
+## Installation receipt (2026-09-29, QA install authorized by David)
+
+- Product source: `9bfa8d74e0fafe2fdad6ab7092e88b3c96994658` (repair commit;
+  later branch commits `6c045d8` and `9e4ac07` touch only `.underbite/`
+  documentation). Composed in a disposable worktree; pinned VoiceInk
+  `3c211dab63454f18cf3f8b58750ec6bf3f5b4d17`; core-only composition.
+- Built and signed via the established `scripts/build-apple-development-pilot.sh`
+  route: build 245, `capital.underbite.syll`, Apple Development Team
+  `A635S52367`; executable SHA-256
+  `da48548ad0fdcef7863d74be960733682f5712a9836f763460419997cf6db39a`.
+- Runtime diff vs installed build 244: identical bundle file list; only the
+  recompiled Mach-O binaries, `Info.plist` (build 244 -> 245), and
+  `_CodeSignature/CodeResources` differ. The product-source diff is exactly
+  `DeterministicDictationCleaner.swift`. No recorder, gesture, recognition,
+  or observation-capture changes.
+- Rollback: `build/recovery-archives/Syll-build244-pre-245-working.zip`
+  (SHA-256 `e802dc8b6322b67784857e7912a35376e9916a3af675aba619d3e3f220d11d01`;
+  archived executable verified to hash `37defb6f...` before cutover) plus
+  exported preferences
+  `build/recovery-archives/capital.underbite.syll-build244-pre-245.preferences.plist`.
+  The prior bundle is also retained temporarily at
+  `/Applications/.Syll-build244-pre245.app` (do not launch it; single-copy
+  rule). Cutover script: `build/cleanup-245-final/cutover-245.sh`.
+- Cutover: build 244 (PID 823) terminated normally; no active recording (last
+  completed session 12:09, cutover 12:13); build 245 launched as PID 97139.
+- Post-install machine checks: bundle id, team, build number and executable
+  hash verified; deep/strict signature verification passed; exactly one Syll
+  process from `/Applications/Syll.app`; Parakeet V3 model cache present and
+  untouched; evidence stores intact (455 timing / 452 ordinary entries,
+  retention unchanged). Prewarm timing was not observable from unified
+  logging this time. No permission resets, no data migration, no diagnostics
+  cleared. These checks are not proof of transcription quality; human QA is
+  pending.

@@ -13,9 +13,9 @@
     "project_manager": "David"
   },
   "implementation": {
-    "branch": "main",
-    "installed_build": 244,
-    "installed_product_source": "b602c7439b1d8c8804a2b2337d9e264592cddae4",
+    "branch": "candidate/cleanup-first-word-repair",
+    "installed_build": 245,
+    "installed_product_source": "9bfa8d74e0fafe2fdad6ab7092e88b3c96994658",
     "voiceink_upstream_commit": "3c211dab63454f18cf3f8b58750ec6bf3f5b4d17",
     "core_fallback": "./scripts/prepare-app.sh --core-only",
     "human_acceptance_required": true,
