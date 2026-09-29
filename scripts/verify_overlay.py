@@ -207,9 +207,12 @@ def main() -> int:
         "await runObservation(on: recordedFile)",
         "SyllObservationStore.shared.save",
         "recordFailure",
+        "failObservation",
         "isObservationCaptureActive",
         "SyllPhase1Runtime.transcriptionConfiguration",
     )
+    if "Saved to observations" in remember_patch or "showObservationOutcome" in remember_patch:
+        raise AssertionError("successful Remember capture must not show an outcome card")
     if "CursorPaster" in remember_patch or "NSPasteboard" in remember_patch:
         raise AssertionError("observation capture must not add any paste or clipboard path")
     require_text(
@@ -237,21 +240,14 @@ def main() -> int:
         "Correct…",
     )
     require_text(
-        "overlays/core/VoiceInk/Views/Recorder/SyllObservationOutcomeView.swift",
-        "struct SyllObservationOutcome",
-        "struct SyllObservationOutcomeView",
-    )
-    require_text(
         "overlays/core/VoiceInk/Views/Recorder/RecorderStateProvider.swift",
         "isObservationMode",
-        "observationOutcome",
     )
     require_text(
         "overlays/core/VoiceInk/Views/Recorder/MiniRecorderView.swift",
         "isObservationMode",
         "rememberViolet",
         "Recording observation",
-        "SyllObservationOutcomeView",
     )
     require_text(
         "overlays/core/VoiceInk/Views/Recorder/SyllWaveformPill.swift",
@@ -269,6 +265,7 @@ def main() -> int:
         "Reset Clipboard",
         "Copy Last Transcription",
         "Observations",
+        "Open Observations",
         "Reveal Observations Folder",
     )
     for hidden in ('Button("Toggle Recorder")', 'Button("Setup…")', 'Button("History…")', 'Button("Advanced Settings…")'):

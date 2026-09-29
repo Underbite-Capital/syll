@@ -34,10 +34,6 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
         stateProvider.commandOutcome != nil
     }
 
-    private var hasObservationOutcome: Bool {
-        stateProvider.observationOutcome != nil
-    }
-
     private var shouldShowCloseButton: Bool {
         hasAssistantResponse && stateProvider.recordingState == .idle && !assistantSession.isBusy
     }
@@ -94,15 +90,6 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
         }
     }
 
-    @ViewBuilder
-    private var observationOutcomeSection: some View {
-        if let outcome = stateProvider.observationOutcome {
-            SyllObservationOutcomeView(outcome: outcome)
-
-            Divider().background(Color.white.opacity(0.15))
-        }
-    }
-
     private var transcriptSection: some View {
         VStack(spacing: 0) {
             if hasLiveTranscript {
@@ -114,8 +101,7 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
 
     var body: some View {
         Group {
-            if !stateProvider.isCommandMode && !hasCommandOutcome && !hasAssistantResponse
-                && !hasObservationOutcome {
+            if !stateProvider.isCommandMode && !hasCommandOutcome && !hasAssistantResponse {
                 if stateProvider.recordingState == .recording {
                     // Remember uses the ordinary pill unchanged except for its
                     // violet accent; no control bar, label, or extra chrome.
@@ -144,9 +130,7 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
 
     private var legacyContent: some View {
         VStack(spacing: 0) {
-            if hasObservationOutcome {
-                observationOutcomeSection
-            } else if hasCommandOutcome {
+            if hasCommandOutcome {
                 commandOutcomeSection
             } else if hasAssistantResponse {
                 AssistantPanelView(
@@ -161,11 +145,9 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
             controlBar
         }
         .frame(
-            width: hasObservationOutcome
+            width: hasCommandOutcome
                 ? commandWidth
-                : (hasCommandOutcome
-                    ? commandWidth
-                    : (hasAssistantResponse ? assistantWidth : (hasLiveTranscript ? expandedWidth : compactWidth)))
+                : (hasAssistantResponse ? assistantWidth : (hasLiveTranscript ? expandedWidth : compactWidth))
         )
         .background(Color.black)
         .clipShape(
@@ -177,6 +159,5 @@ struct MiniRecorderView<S: RecorderStateProvider & ObservableObject>: View {
         .animation(.easeInOut(duration: 0.3), value: hasLiveTranscript)
         .animation(.easeInOut(duration: 0.3), value: hasAssistantResponse)
         .animation(.easeInOut(duration: 0.2), value: hasCommandOutcome)
-        .animation(.easeInOut(duration: 0.2), value: hasObservationOutcome)
     }
 }

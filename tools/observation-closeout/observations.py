@@ -16,11 +16,23 @@ awaitingDecision (proposal/question for David) | unresolved (concern still
 open) -> addressed (David marks it; an agent response never does).
 Outstanding work for closeout = new + awaitingDecision + unresolved.
 
+This is the supported machine interface. Agents must not edit the JSON
+store directly.
+
 Usage:
-  observations.py list   [--root PATH] [--json]
+  observations.py list [--new | --all] [--root PATH] [--json]
   observations.py respond --id ID --response TEXT --disposition answered|proposal|unresolved [--responder NAME] [--root PATH]
   observations.py import-responses --file responses.json [--root PATH]
   observations.py correct --id ID --text TEXT [--root PATH]
+
+`list` (default) prints outstanding observations: status new,
+awaitingDecision, or unresolved. `--new` is only status new. `--all`
+includes reviewed and addressed history.
+
+Each JSON record agents should rely on:
+id, createdAt, originalText, text, correctedText, status, review
+(response, disposition, basisText, respondedAt, responder).
+`respond` and `import-responses` never set status addressed.
 
 `import-responses` validates a reviewer-produced JSON file:
 {"responses": [{"id": ..., "response": ..., "disposition": ...}, ...]}
@@ -71,6 +83,10 @@ def load_observations(root: Path) -> list[dict]:
 
 def outstanding(root: Path) -> list[dict]:
     return [r for r in load_observations(root) if r.get("status") in OUTSTANDING]
+
+
+def only_new(root: Path) -> list[dict]:
+    return [r for r in load_observations(root) if r.get("status") == "new"]
 
 
 def display_text(record: dict) -> str:
@@ -131,12 +147,18 @@ def apply_response(root: Path, observation_id: str, response: str,
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    pending = outstanding(args.root)
+    if args.all:
+        pending = load_observations(args.root)
+    elif args.new:
+        pending = only_new(args.root)
+    else:
+        pending = outstanding(args.root)
     if args.json:
         print(json.dumps(pending, indent=2, sort_keys=True))
         return 0
+    label = "observation(s)" if args.all or args.new else "outstanding observation(s)"
     if not pending:
-        print("No outstanding observations.")
+        print(f"No {label.replace('(s)', 's')}.")
         return 0
     for record in pending:
         status = record.get("status", "?")
@@ -145,7 +167,7 @@ def cmd_list(args: argparse.Namespace) -> int:
         review = record.get("review")
         if review:
             print(f"  previous response ({review.get('disposition', '?')}): {review.get('response', '')}")
-    print(f"\n{len(pending)} outstanding observation(s).")
+    print(f"\n{len(pending)} {label}.")
     return 0
 
 
@@ -208,7 +230,10 @@ def main() -> int:
     parser.add_argument("--responder", default="closeout-agent")
     commands = parser.add_subparsers(dest="command", required=True)
 
-    list_parser = commands.add_parser("list", help="List outstanding observations.")
+    list_parser = commands.add_parser("list", help="List observations. Default: outstanding only.")
+    scope = list_parser.add_mutually_exclusive_group()
+    scope.add_argument("--new", action="store_true", help="Only observations with no response yet.")
+    scope.add_argument("--all", action="store_true", help="Every observation, including reviewed and addressed.")
     list_parser.add_argument("--json", action="store_true")
     list_parser.set_defaults(func=cmd_list)
 

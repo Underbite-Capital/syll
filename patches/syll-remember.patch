@@ -92,7 +92,7 @@ index 497fc99..1a1a471 100644
          guard let engine = engine else { return }
          await engine.discardRecording()
 diff --git a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
-index 87a06f7..987f4ab 100644
+index 87a06f7..912f4d4 100644
 --- a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
 +++ b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
 @@ -87,10 +87,20 @@ class VoiceInkEngine: NSObject, ObservableObject {
@@ -116,24 +116,15 @@ index 87a06f7..987f4ab 100644
      }
  
      @Published var recordingState: RecordingState = .idle
-@@ -98,6 +108,8 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -98,6 +108,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
      @Published var partialTranscript: String = ""
      @Published private(set) var isCommandMode = false
      @Published private(set) var commandOutcome: SyllCommandOutcome?
 +    @Published private(set) var isObservationMode = false
-+    @Published private(set) var observationOutcome: SyllObservationOutcome?
      var currentSession: TranscriptionSession?
      private var currentSessionTranscriptionConfiguration: TranscriptionRuntimeConfiguration?
      private var activeRecordingStartID: UUID?
-@@ -110,6 +122,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
-     private var voiceInkRefinePreparationTask: Task<Void, Never>?
-     private var commandContext: SyllCommandContext?
-     private var commandOutcomeDismissal: Task<Void, Never>?
-+    private var observationOutcomeDismissal: Task<Void, Never>?
-     private let commandExecutor = SyllCommandExecutor()
- 
-     let recorder = Recorder()
-@@ -208,10 +221,17 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -208,10 +219,17 @@ class VoiceInkEngine: NSObject, ObservableObject {
              }
  
              if let recordedFile {
@@ -153,7 +144,7 @@ index 87a06f7..987f4ab 100644
                      let transcription = makeRecordingTranscription(
                          for: recordedFile,
                          text: "",
-@@ -227,7 +247,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -227,7 +245,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
                          audioURL: recordedFile,
                          contextStore: activeRecordingContextStore
                      )
@@ -162,17 +153,15 @@ index 87a06f7..987f4ab 100644
                      await finishActiveRecorderCancellation()
                  }
              } else {
-@@ -247,6 +267,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -247,6 +265,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
              commandOutcomeDismissal?.cancel()
              commandOutcome = nil
              isCommandMode = false
-+            observationOutcomeDismissal?.cancel()
-+            observationOutcome = nil
 +            isObservationMode = false
              partialTranscript = ""
              activeRecordingUseCase = recordingUseCase
              clearActiveRecordingContext()
-@@ -621,6 +644,21 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -621,6 +640,21 @@ class VoiceInkEngine: NSObject, ObservableObject {
          clearActiveRecordingContext()
      }
  
@@ -194,25 +183,27 @@ index 87a06f7..987f4ab 100644
      func discardRecording() async {
          requestRecordingCancellation()
          activeRecordingStartID = nil
-@@ -632,6 +670,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -632,6 +666,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
          recordedFile = nil
          partialTranscript = ""
          shouldCancelRecording = false
 +        isObservationMode = false
-+        observationOutcomeDismissal?.cancel()
-+        observationOutcome = nil
          recordingState = .idle
          await cleanupResources()
      }
-@@ -707,6 +748,90 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -707,6 +742,74 @@ class VoiceInkEngine: NSObject, ObservableObject {
          }
      }
  
 +    /// Remember observation capture: transcribe with the same local Parakeet V3
 +    /// path, then persist durably. An observation is never pasted, never
 +    /// touches the clipboard, never executes a command, and never enters
-+    /// ordinary transcription history. Failures stay visible and keep the
-+    /// audio recoverable under Observations/Failed.
++    /// ordinary transcription history. A successful save is silent: the pill
++    /// disappears and David returns to what he was doing; the observation is
++    /// inspectable in the Observations window. A failure must tell David,
++    /// because otherwise he reasonably believes the thought was remembered
++    /// when it was not — compactly, via the ordinary notification surface,
++    /// with the audio kept recoverable under Observations/Failed.
 +    private func runObservation(on audioURL: URL) async {
 +        defer {
 +            recordedFile = nil
@@ -226,11 +217,7 @@ index 87a06f7..987f4ab 100644
 +        guard let configuration = SyllPhase1Runtime.transcriptionConfiguration(manager: transcriptionModelManager) else {
 +            SyllObservationStore.shared.recordFailure(
 +                audioURL: audioURL, reason: "Local Parakeet V3 model is unavailable")
-+            showObservationOutcome(SyllObservationOutcome(
-+                title: "Not saved",
-+                detail: "Model unavailable; audio kept in Observations/Failed",
-+                kind: .failure
-+            ))
++            await failObservation("Observation not saved — audio kept in Observations/Failed")
 +            return
 +        }
 +
@@ -245,11 +232,7 @@ index 87a06f7..987f4ab 100644
 +            guard !heard.isEmpty else {
 +                SyllObservationStore.shared.recordFailure(
 +                    audioURL: audioURL, reason: "Nothing was recognized")
-+                showObservationOutcome(SyllObservationOutcome(
-+                    title: "Not saved",
-+                    detail: "Nothing recognized; audio kept in Observations/Failed",
-+                    kind: .failure
-+                ))
++                await failObservation("Observation not saved — nothing recognized; audio kept")
 +                return
 +            }
 +            let text = WordReplacementService.shared.applyReplacements(to: heard, using: modelContext)
@@ -261,51 +244,37 @@ index 87a06f7..987f4ab 100644
 +                audioDurationSeconds: duration,
 +                model: configuration.model.name
 +            )
-+            showObservationOutcome(SyllObservationOutcome(
-+                title: "Saved to observations",
-+                detail: text,
-+                kind: .success
-+            ))
++            // Success is silent: no outcome card, toast, sound, or clipboard.
++            isObservationMode = false
++            recordingState = .idle
++            await recorderUIManager?.dismissRecorderPanel()
 +        } catch {
 +            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
 +            SyllObservationStore.shared.recordFailure(
 +                audioURL: audioURL, reason: "Transcription or saving failed: \(message)")
-+            showObservationOutcome(SyllObservationOutcome(
-+                title: "Not saved",
-+                detail: "\(message); audio kept in Observations/Failed",
-+                kind: .failure
-+            ))
++            await failObservation("Observation not saved — \(message); audio kept")
 +        }
 +    }
 +
-+    private func showObservationOutcome(_ outcome: SyllObservationOutcome) {
-+        observationOutcome = outcome
++    private func failObservation(_ title: String) async {
 +        isObservationMode = false
 +        recordingState = .idle
-+        observationOutcomeDismissal?.cancel()
-+        let displaySeconds: Double = outcome.kind == .failure ? 7 : 3
-+        observationOutcomeDismissal = Task { @MainActor [weak self] in
-+            try? await Task.sleep(for: .seconds(displaySeconds))
-+            guard !Task.isCancelled, let self, self.observationOutcome == outcome else { return }
-+            self.observationOutcome = nil
-+            await self.recorderUIManager?.dismissRecorderPanel()
-+        }
++        NotificationManager.shared.showNotification(title: title, type: .error, duration: 7.0)
++        await recorderUIManager?.dismissRecorderPanel()
 +    }
 +
      private func showCommandOutcome(_ outcome: SyllCommandOutcome) {
          commandOutcome = outcome
          isCommandMode = false
-@@ -766,6 +891,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -766,6 +869,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
          commandOutcome = nil
          isCommandMode = false
          commandContext = nil
-+        observationOutcomeDismissal?.cancel()
-+        observationOutcome = nil
 +        isObservationMode = false
          await recorder.stopRecording()
          recordedFile = nil
          recordingState = .idle
-@@ -788,7 +916,18 @@ class VoiceInkEngine: NSObject, ObservableObject {
+@@ -788,7 +892,16 @@ class VoiceInkEngine: NSObject, ObservableObject {
          activeRecordingStartID = nil
          clearActiveRecordingContext()
          await recorder.stopRecording()
@@ -320,8 +289,6 @@ index 87a06f7..987f4ab 100644
 +            await saveCanceledRecording()
 +        }
 +        isObservationMode = false
-+        observationOutcomeDismissal?.cancel()
-+        observationOutcome = nil
          recordedFile = nil
          partialTranscript = ""
          recordingState = .idle

@@ -8,5 +8,4 @@ protocol RecorderStateProvider: AnyObject {
     var isCommandMode: Bool { get }
     var commandOutcome: SyllCommandOutcome? { get }
     var isObservationMode: Bool { get }
-    var observationOutcome: SyllObservationOutcome? { get }
 }

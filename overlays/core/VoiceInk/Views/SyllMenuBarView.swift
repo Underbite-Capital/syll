@@ -12,8 +12,7 @@ struct SyllMenuBarView: View {
         Button("Copy Last Transcription") { LastTranscriptionService.copyLastTranscription(from: engine.modelContext) }
         Button("Reset Clipboard") { resetClipboard() }
         Button("Personal Dictionary…") { show(.dictionary) }
-        Menu("Observations") {
-            Text(observationStatusLine)
+        Menu(observationMenuTitle) {
             Button("Open Observations…") { SyllObservationWindowController.shared.show() }
             Divider()
             Button("Copy Outstanding Observations") { copyOutstandingObservations() }
@@ -74,12 +73,9 @@ struct SyllMenuBarView: View {
         }
     }
 
-    private var observationStatusLine: String {
-        let summary = SyllObservationStore.shared.summary()
-        if summary.outstanding == 0 {
-            return "No outstanding observations"
-        }
-        return "\(summary.outstanding) outstanding observation\(summary.outstanding == 1 ? "" : "s")"
+    private var observationMenuTitle: String {
+        let outstanding = SyllObservationStore.shared.summary().outstanding
+        return outstanding == 0 ? "Observations" : "Observations (\(outstanding))"
     }
 
     /// Manual retrieval fallback: copies outstanding observations only when
