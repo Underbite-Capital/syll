@@ -68,6 +68,7 @@ def main() -> int:
     validate_patch_syntax("patches/syll-command-mode.patch")
     validate_patch_syntax("patches/syll-core-reliability.patch")
     validate_patch_syntax("patches/syll-disable-double-tap.patch")
+    validate_patch_syntax("patches/syll-remember.patch")
     if not args.core_only:
         validate_patch_syntax("patches/boosting.patch")
 
@@ -81,6 +82,7 @@ def main() -> int:
         "patches/syll-command-mode.patch",
         "patches/syll-core-reliability.patch",
         "patches/syll-disable-double-tap.patch",
+        "patches/syll-remember.patch",
     )
     if "MODE=\"full\"" not in prepare:
         raise AssertionError("full overlay must remain the explicit default")
@@ -196,12 +198,55 @@ def main() -> int:
     if disable_double_tap.count("diff --git ") != 1:
         raise AssertionError("double-tap disablement must touch only the shortcut handler")
 
+    remember_patch = require_text(
+        "patches/syll-remember.patch",
+        "latchObservationMode()",
+        "isHandsFreeRecording = true",
+        "case observation",
+        "stoppedUseCase == .observation",
+        "await runObservation(on: recordedFile)",
+        "SyllObservationStore.shared.save",
+        "recordFailure",
+        "SyllPhase1Runtime.transcriptionConfiguration",
+    )
+    if "CursorPaster" in remember_patch or "NSPasteboard" in remember_patch:
+        raise AssertionError("observation capture must not add any paste or clipboard path")
+    require_text(
+        "overlays/core/VoiceInk/Services/SyllObservationStore.swift",
+        "originalText",
+        "schemaVersion",
+        "awaitingReview",
+        "automatic expiry",
+    )
+    require_text(
+        "overlays/core/VoiceInk/Views/Recorder/SyllObservationOutcomeView.swift",
+        "struct SyllObservationOutcome",
+        "struct SyllObservationOutcomeView",
+    )
+    require_text(
+        "overlays/core/VoiceInk/Views/Recorder/RecorderStateProvider.swift",
+        "isObservationMode",
+        "observationOutcome",
+    )
+    require_text(
+        "overlays/core/VoiceInk/Views/Recorder/MiniRecorderView.swift",
+        "isObservationMode",
+        "Remember",
+        "SyllObservationOutcomeView",
+    )
+
     dictionary = require_text("dictionary.yaml", "version: 1", "canonical:")
     require_text("patches/syll-local-diagnostics.patch", "firstAcceptedBufferNanos", "captureRaw", "resetClipboard")
     require_text("overlays/core/VoiceInk/Services/SyllFailureEvidenceStore.swift", "maximumMarkedCount", "maximumOrdinaryCount", "maximumOrdinaryBytes", "rawRecognizerText")
     require_text("overlays/core/VoiceInk/Services/SyllOperationalLog.swift", "firstAcceptedBufferUptimeSeconds", "maximumSessions")
     require_text("overlays/core/VoiceInk/Paste/SyllClipboardResetPolicy.swift", "currentSessionID == expectedSessionID", "currentText == expectedText")
-    menu = require_text("overlays/core/VoiceInk/Views/SyllMenuBarView.swift", "Reset Clipboard", "Copy Last Transcription")
+    menu = require_text(
+        "overlays/core/VoiceInk/Views/SyllMenuBarView.swift",
+        "Reset Clipboard",
+        "Copy Last Transcription",
+        "Observations",
+        "Reveal Observations Folder",
+    )
     for hidden in ('Button("Toggle Recorder")', 'Button("Setup…")', 'Button("History…")', 'Button("Advanced Settings…")'):
         if hidden in menu:
             raise AssertionError(f"legacy menu entry remains: {hidden}")

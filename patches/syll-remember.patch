@@ -1,0 +1,225 @@
+diff --git a/VoiceInk/Shortcuts/RecordingShortcutManager.swift b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
+index 89f917c..60cc442 100644
+--- a/VoiceInk/Shortcuts/RecordingShortcutManager.swift
++++ b/VoiceInk/Shortcuts/RecordingShortcutManager.swift
+@@ -128,6 +128,9 @@ class RecordingShortcutManager: ObservableObject {
+             latchCommandMode: {
+                 engine.latchCommandMode()
+             },
++            latchObservationMode: {
++                engine.latchObservationMode()
++            },
+             cancelRecording: {
+                 await recorderUIManager.cancelRecording()
+             }
+@@ -350,6 +353,7 @@ final class RecordingShortcutModeHandler {
+     private let recordingState: @MainActor () -> RecordingState
+     private let toggleRecorderPanel: @MainActor (UUID?) async -> Void
+     private let latchCommandMode: @MainActor () -> Void
++    private let latchObservationMode: @MainActor () -> Bool
+     private let cancelRecording: @MainActor () async -> Void
+ 
+     private var shortcutPressStartTime: TimeInterval?
+@@ -369,6 +373,7 @@ final class RecordingShortcutModeHandler {
+         recordingState: @escaping @MainActor () -> RecordingState,
+         toggleRecorderPanel: @escaping @MainActor (UUID?) async -> Void,
+         latchCommandMode: @escaping @MainActor () -> Void,
++        latchObservationMode: @escaping @MainActor () -> Bool,
+         cancelRecording: @escaping @MainActor () async -> Void
+     ) {
+         self.canHandleShortcutAction = canHandleShortcutAction
+@@ -376,6 +381,7 @@ final class RecordingShortcutModeHandler {
+         self.recordingState = recordingState
+         self.toggleRecorderPanel = toggleRecorderPanel
+         self.latchCommandMode = latchCommandMode
++        self.latchObservationMode = latchObservationMode
+         self.cancelRecording = cancelRecording
+     }
+ 
+@@ -403,6 +409,14 @@ final class RecordingShortcutModeHandler {
+         if mode == .hybrid, pendingHybridTap != nil {
+             pendingHybridTap?.cancel()
+             pendingHybridTap = nil
++            if action == .primaryRecording, latchObservationMode() {
++                // Double-tap Fn starts Remember observation capture: the
++                // recording the first tap started continues hands-free, and a
++                // later tap finishes it. Returning early keeps this second
++                // press from running ordinary shortcut handling.
++                isHandsFreeRecording = true
++                return
++            }
+         }
+ 
+         guard !isShortcutPressed else {
+diff --git a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
+index 87a06f7..d92f3e0 100644
+--- a/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
++++ b/VoiceInk/Transcription/Engine/VoiceInkEngine.swift
+@@ -87,6 +87,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         case newSession
+         case assistantFollowUp
+         case command
++        case observation
+ 
+         var isAssistantFollowUp: Bool {
+             self == .assistantFollowUp
+@@ -98,6 +99,8 @@ class VoiceInkEngine: NSObject, ObservableObject {
+     @Published var partialTranscript: String = ""
+     @Published private(set) var isCommandMode = false
+     @Published private(set) var commandOutcome: SyllCommandOutcome?
++    @Published private(set) var isObservationMode = false
++    @Published private(set) var observationOutcome: SyllObservationOutcome?
+     var currentSession: TranscriptionSession?
+     private var currentSessionTranscriptionConfiguration: TranscriptionRuntimeConfiguration?
+     private var activeRecordingStartID: UUID?
+@@ -110,6 +113,7 @@ class VoiceInkEngine: NSObject, ObservableObject {
+     private var voiceInkRefinePreparationTask: Task<Void, Never>?
+     private var commandContext: SyllCommandContext?
+     private var commandOutcomeDismissal: Task<Void, Never>?
++    private var observationOutcomeDismissal: Task<Void, Never>?
+     private let commandExecutor = SyllCommandExecutor()
+ 
+     let recorder = Recorder()
+@@ -211,6 +215,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+                 if !shouldCancelRecording, stoppedUseCase == .command {
+                     await runCommand(on: recordedFile)
+                     await cleanupResources()
++                } else if !shouldCancelRecording, stoppedUseCase == .observation {
++                    await runObservation(on: recordedFile)
++                    await cleanupResources()
+                 } else if !shouldCancelRecording {
+                     let transcription = makeRecordingTranscription(
+                         for: recordedFile,
+@@ -247,6 +254,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+             commandOutcomeDismissal?.cancel()
+             commandOutcome = nil
+             isCommandMode = false
++            observationOutcomeDismissal?.cancel()
++            observationOutcome = nil
++            isObservationMode = false
+             partialTranscript = ""
+             activeRecordingUseCase = recordingUseCase
+             clearActiveRecordingContext()
+@@ -621,6 +631,21 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         clearActiveRecordingContext()
+     }
+ 
++    /// Double-tap Fn latches Remember observation capture onto the recording
++    /// the first tap already started. Returns false when no eligible ordinary
++    /// session is in flight, so the shortcut handler can fall back to ordinary
++    /// handling.
++    func latchObservationMode() -> Bool {
++        guard activeRecordingUseCase == .newSession,
++            recordingState == .starting || recordingState == .recording
++        else { return false }
++
++        activeRecordingUseCase = .observation
++        isObservationMode = true
++        clearActiveRecordingContext()
++        return true
++    }
++
+     func discardRecording() async {
+         requestRecordingCancellation()
+         activeRecordingStartID = nil
+@@ -707,6 +732,90 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         }
+     }
+ 
++    /// Remember observation capture: transcribe with the same local Parakeet V3
++    /// path, then persist durably. An observation is never pasted, never
++    /// touches the clipboard, never executes a command, and never enters
++    /// ordinary transcription history. Failures stay visible and keep the
++    /// audio recoverable under Observations/Failed.
++    private func runObservation(on audioURL: URL) async {
++        defer {
++            recordedFile = nil
++            currentSession = nil
++            currentSessionTranscriptionConfiguration = nil
++            shouldCancelRecording = false
++            activePipelineUseCase = .newSession
++            clearActiveRecordingContext()
++        }
++
++        guard let configuration = SyllPhase1Runtime.transcriptionConfiguration(manager: transcriptionModelManager) else {
++            SyllObservationStore.shared.recordFailure(
++                audioURL: audioURL, reason: "Local Parakeet V3 model is unavailable")
++            showObservationOutcome(SyllObservationOutcome(
++                title: "Not saved",
++                detail: "Model unavailable; audio kept in Observations/Failed",
++                kind: .failure
++            ))
++            return
++        }
++
++        do {
++            let rawTranscript = try await serviceRegistry.transcribe(
++                audioURL: audioURL,
++                model: configuration.model,
++                context: configuration.requestContext
++            )
++            let heard = TranscriptionOutputFilter.filter(rawTranscript)
++                .trimmingCharacters(in: .whitespacesAndNewlines)
++            guard !heard.isEmpty else {
++                SyllObservationStore.shared.recordFailure(
++                    audioURL: audioURL, reason: "Nothing was recognized")
++                showObservationOutcome(SyllObservationOutcome(
++                    title: "Not saved",
++                    detail: "Nothing recognized; audio kept in Observations/Failed",
++                    kind: .failure
++                ))
++                return
++            }
++            let text = WordReplacementService.shared.applyReplacements(to: heard, using: modelContext)
++            let duration = await AudioFileMetadata.duration(for: audioURL)
++            try SyllObservationStore.shared.save(
++                audioURL: audioURL,
++                originalText: heard,
++                text: text,
++                audioDurationSeconds: duration,
++                model: configuration.model.name
++            )
++            showObservationOutcome(SyllObservationOutcome(
++                title: "Saved to observations",
++                detail: text,
++                kind: .success
++            ))
++        } catch {
++            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
++            SyllObservationStore.shared.recordFailure(
++                audioURL: audioURL, reason: "Transcription or saving failed: \(message)")
++            showObservationOutcome(SyllObservationOutcome(
++                title: "Not saved",
++                detail: "\(message); audio kept in Observations/Failed",
++                kind: .failure
++            ))
++        }
++    }
++
++    private func showObservationOutcome(_ outcome: SyllObservationOutcome) {
++        observationOutcome = outcome
++        isObservationMode = false
++        recordingState = .idle
++        observationOutcomeDismissal?.cancel()
++        let displaySeconds: Double = outcome.kind == .failure ? 7 : 3
++        observationOutcomeDismissal = Task { @MainActor [weak self] in
++            try? await Task.sleep(for: .seconds(displaySeconds))
++            guard !Task.isCancelled, let self, self.observationOutcome == outcome else { return }
++            self.observationOutcome = nil
++            await self.recorderUIManager?.dismissRecorderPanel()
++        }
++    }
++
+     private func showCommandOutcome(_ outcome: SyllCommandOutcome) {
+         commandOutcome = outcome
+         isCommandMode = false
+@@ -766,6 +875,9 @@ class VoiceInkEngine: NSObject, ObservableObject {
+         commandOutcome = nil
+         isCommandMode = false
+         commandContext = nil
++        observationOutcomeDismissal?.cancel()
++        observationOutcome = nil
++        isObservationMode = false
+         await recorder.stopRecording()
+         recordedFile = nil
+         recordingState = .idle
