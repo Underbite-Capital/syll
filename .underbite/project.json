@@ -14,8 +14,8 @@
   },
   "implementation": {
     "branch": "candidate/remember-observations",
-    "installed_build": 247,
-    "installed_product_source": "365dbce",
+    "installed_build": 248,
+    "installed_product_source": "6b953da",
     "voiceink_upstream_commit": "3c211dab63454f18cf3f8b58750ec6bf3f5b4d17",
     "core_fallback": "./scripts/prepare-app.sh --core-only",
     "human_acceptance_required": true,
