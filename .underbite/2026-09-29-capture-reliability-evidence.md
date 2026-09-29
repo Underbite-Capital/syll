@@ -19,24 +19,28 @@ were recorded. Retention policy was not changed.
 
 From all 448 completed ordinary sessions unless noted:
 
-- Startup is fast: shortcut handler to first accepted audio buffer median
-  67 ms, p90 92 ms, max 106 ms. Zero dropped buffers in the whole corpus.
+- Startup is fast: app shortcut-handler time to first accepted audio buffer
+  median 67 ms, p90 92 ms, max 106 ms. The shortcut-handler timestamp is when
+  the app's handler ran; it is not a measured physical keypress time. Zero
+  dropped buffers in the whole corpus.
 - 51 of 447 analyzable WAVs (11%) contain speech-level energy (above -45 dBFS)
-  in the first 20 ms — the recording begins mid-utterance. The other sessions
-  show a median 180 ms of leading silence (David's normal press-then-speak
-  pattern). Speech at sample 0 means the front of those utterances is not in
-  the file (category A). The bound on what was lost is the startup interval
-  above; how much speech preceded the first buffer is not observable offline.
+  in the first 20 ms; the other sessions show a median 180 ms of leading
+  silence. Initial speech-level energy identifies possible truncated-onset
+  recordings. It does not by itself prove missing words, and 11% is the share
+  of sampled recordings with this onset shape, not a measured capture-failure
+  rate. How much speech preceded the first buffer is not observable offline.
 - 188 of 447 sessions had their text altered after recognition. Most are
   upstream TextNormalizer number conversions ("first" -> "1st") and intended
   hesitation removal. Syll's own deterministic cleaner deleted
   utterance-leading spoken words in 18 sessions: 5x "Yeah, so ..." openings
-  (two words each) and 13x leading hesitation tokens.
+  (two words each) and 13x leading hesitation tokens. This repair changes
+  only the 5 "Yeah, so ..." cases; the 13 Uh/Um removals are unchanged
+  policy in this slice.
 - One genuine short utterance was destroyed by cleanup: raw "Mm-hmm." (1.24 s)
   was delivered as "-." because the hesitation set consumed both syllables.
-- Short-utterance recognition itself looks healthy where speech is complete:
-  33 sessions under 1.5 s have plausible raw transcripts ("Let's go.",
-  "Commit and push."). No unmarked recording was labeled a failure.
+- Short-utterance recognition produced plausible raw transcripts on the 33
+  sessions under 1.5 s ("Let's go.", "Commit and push."). Plausible is not
+  verified accurate; no unmarked recording was labeled a failure.
 
 ## Hypotheses (not established)
 
@@ -57,7 +61,9 @@ behavior are unchanged.
 Before/after over all 448 stored raw recognizer outputs (same input, old vs
 new cleaner): exactly 6 sessions change — the five "Yeah, so ..." openings
 keep their first two words, and "Mm-hmm." stays "Mm-hmm.". The other 442
-outputs are byte-identical (successful controls unchanged).
+outputs are byte-identical (successful controls unchanged). Six changed
+outputs out of 448 is approximately 1.3% of the sampled corpus; it is not a
+measured percentage of David's experienced failures.
 
 End-to-end replay through the existing `tools/recognition-eval` harness
 (pinned FluidAudio `c7b13a3`, int8 Parakeet TDT v3) on the two shortest
@@ -75,12 +81,17 @@ yields "Mm-hmm." and "Yeah, so now it's really small. ..." after cleanup.
 
 ## Remaining uncertainty and next diagnostic boundary
 
-This repair covers only the post-recognition share of first-word loss (18 of
-447 sessions, 4%). The larger category-A share (51 mid-speech WAV starts, 11%)
-is untouched: the candidate repair is gating the start cue on actual capture
-readiness (first accepted buffer) rather than on the early panel/sound path,
-but that needs live timing evidence and David's QA — replay cannot prove
-hardware capture. Whether recognition quality on complete short clips meets
+This repair covers only the post-recognition deletions it changes: the 5
+"Yeah, so ..." openings and the "Mm-hmm." collapse, 6 of 448 sampled sessions
+(~1.3% of the sample, not a measured share of experienced failures). The 13
+leading Uh/Um removals are deliberate policy and remain. The possible
+truncated-onset recordings (51 of 447 sampled WAVs with speech-level energy
+in the first 20 ms) are untouched: whether words were actually lost there is
+unproven, and the candidate follow-up is gating the start cue on actual
+capture readiness (first accepted buffer) rather than on the early
+panel/sound path. That needs live timing evidence and David's QA — replay
+cannot prove hardware capture, and delaying the start cue is not presumed to
+fix it. Whether recognition quality on complete short clips meets
 David's bar requires his corrections on real failures (the mark-latest-failure
 menu flow), which the corpus does not yet contain.
 
